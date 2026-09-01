@@ -157,6 +157,14 @@ class VoiceEmergencyDetector extends ChangeNotifier {
     _setState(VoiceDetectionState.cancelled);
     _triggerCount = 0;
 
+    // Re-establish our callbacks on the bridge.
+    // VoiceAlertService._setupCallbacks() overwrites bridge callbacks during
+    // emergency verification. We must restore our callbacks before resuming
+    // continuous listening so we receive speech events again.
+    if (_enabled) {
+      _setupCallbacks();
+    }
+
     // Resume listening after a brief pause
     Future.delayed(const Duration(seconds: 2), () {
       if (_enabled && _state == VoiceDetectionState.cancelled) {

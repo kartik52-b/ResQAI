@@ -24,42 +24,56 @@ class SmsService {
   SmsService(this._bridge);
 
   /// Build the emergency SMS message with real GPS data.
+  ///
+  /// The message contains:
+  /// 1. A live emergency tracking page link (Leaflet + OpenStreetMap)
+  /// 2. A direct Google Maps fallback link
+  /// 3. Real coordinates and timestamp
   String buildEmergencyMessage({
     required double latitude,
     required double longitude,
     required DateTime timestamp,
     double? speedKmh,
     int? emergencyScore,
+    String? emergencyPageUrl,
   }) {
     final timeStr = '${timestamp.hour.toString().padLeft(2, '0')}:'
         '${timestamp.minute.toString().padLeft(2, '0')}:'
         '${timestamp.second.toString().padLeft(2, '0')}';
     final dateStr = '${timestamp.day}/${timestamp.month}/${timestamp.year}';
 
-    // Google Maps link
-    final mapsLink = 'https://maps.google.com/?q=$latitude,$longitude';
+    // Google Maps fallback link
+    final mapsLink = 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
 
     final buffer = StringBuffer();
-    buffer.writeln('🚨 RESQ AI EMERGENCY ALERT');
+    buffer.writeln('RESQ AI EMERGENCY ALERT');
+    buffer.writeln('I may need help.');
     buffer.writeln('');
-    buffer.writeln('A possible accident/emergency has been detected.');
-    buffer.writeln('The user may need immediate help.');
+
+    // Live emergency tracking link (Leaflet + OpenStreetMap)
+    if (emergencyPageUrl != null && emergencyPageUrl.isNotEmpty) {
+      buffer.writeln('Live Location:');
+      buffer.writeln(emergencyPageUrl);
+      buffer.writeln('');
+    }
+
+    buffer.writeln('Last known coordinates:');
+    buffer.writeln('Latitude: ${latitude.toStringAsFixed(6)}');
+    buffer.writeln('Longitude: ${longitude.toStringAsFixed(6)}');
     buffer.writeln('');
-    buffer.writeln('📍 Location:');
-    buffer.writeln('   $latitude, $longitude');
-    buffer.writeln('   $mapsLink');
+
+    // Google Maps fallback
+    buffer.writeln('Map: $mapsLink');
     buffer.writeln('');
-    buffer.writeln('🕐 Time: $dateStr at $timeStr');
+    buffer.writeln('Time: $dateStr at $timeStr');
+    buffer.writeln('Please check my live location and contact me immediately.');
 
     if (speedKmh != null && speedKmh > 0) {
-      buffer.writeln('🚗 Speed at impact: ${speedKmh.toStringAsFixed(1)} km/h');
+      buffer.writeln('Speed at incident: ${speedKmh.toStringAsFixed(1)} km/h');
     }
     if (emergencyScore != null) {
-      buffer.writeln('⚠️ Emergency score: $emergencyScore/100');
+      buffer.writeln('Emergency score: $emergencyScore/100');
     }
-
-    buffer.writeln('');
-    buffer.writeln('Please check immediately.');
 
     return buffer.toString();
   }
@@ -73,6 +87,7 @@ class SmsService {
     required DateTime timestamp,
     double? speedKmh,
     int? emergencyScore,
+    String? emergencyPageUrl,
   }) async {
     if (contacts.isEmpty) {
       debugPrint('SmsService: No contacts to notify');
@@ -85,6 +100,7 @@ class SmsService {
       timestamp: timestamp,
       speedKmh: speedKmh,
       emergencyScore: emergencyScore,
+      emergencyPageUrl: emergencyPageUrl,
     );
 
     debugPrint('SmsService: Sending emergency SMS to ${contacts.length} contacts');

@@ -77,6 +77,14 @@ class NativeServiceBridge {
     }
   }
 
+  Future<void> dismissEmergencyNotification() async {
+    try {
+      await _channel.invokeMethod('dismissEmergencyNotification');
+    } catch (e) {
+      debugPrint('NativeServiceBridge: dismissEmergencyNotification error: $e');
+    }
+  }
+
   // --- Foreground Service ---
 
   Future<bool> startForegroundService() async {

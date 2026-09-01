@@ -73,17 +73,18 @@ class EmergencyScreen extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Countdown timer
+              // Countdown timer (MM:SS format)
               Text(
-                remainingSeconds.toString(),
+                '${(remainingSeconds ~/ 60).toString().padLeft(2, '0')}:${(remainingSeconds % 60).toString().padLeft(2, '0')}',
                 style: TextStyle(
                   color: remainingSeconds <= 10 ? Colors.red : Colors.white,
                   fontSize: 72,
                   fontWeight: FontWeight.bold,
+                  fontFamily: 'monospace',
                 ),
               ),
               const Text(
-                'seconds remaining',
+                'minutes remaining',
                 style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
 

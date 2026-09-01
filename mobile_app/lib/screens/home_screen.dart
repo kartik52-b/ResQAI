@@ -42,7 +42,34 @@ class HomeScreen extends StatelessWidget {
                         fontSize: 13,
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
+
+                    // Demo Mode banner
+                    if (monitor.demoMode)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.teal.withOpacity(0.4)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.present_to_all, color: Colors.teal, size: 16),
+                            SizedBox(width: 8),
+                            Text(
+                              'DEMO MODE — 15s countdown',
+                              style: TextStyle(
+                                color: Colors.teal,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const SizedBox(height: 16),
 
                     // Protection toggle
                     _buildProtectionToggle(context, monitor),
@@ -67,6 +94,12 @@ class HomeScreen extends StatelessWidget {
                     // GPS + Location
                     _buildLocationCard(monitor),
                     const SizedBox(height: 12),
+
+                    // Live Speed Display
+                    if (monitor.isProtecting && monitor.gpsStatus == 'ACTIVE')
+                      _buildSpeedCard(monitor),
+                    if (monitor.isProtecting && monitor.gpsStatus == 'ACTIVE')
+                      const SizedBox(height: 12),
 
                     // Background service
                     _buildStatusCard(
@@ -175,7 +208,7 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   monitor.isProtecting
-                      ? 'Monitoring sensors and location'
+                      ? 'Sensors + GPS + Voice monitoring active'
                       : 'Tap to enable safety monitoring',
                   style: TextStyle(
                     color: Colors.grey.shade500,
@@ -316,6 +349,13 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildVoiceCard(BuildContext context, SafetyMonitorService monitor) {
+    // Voice detection is automatic — status indicator only, no manual toggle.
+    final voiceActive = monitor.voiceDetectionOn && monitor.isProtecting;
+    final voiceStatus = monitor.voiceMicStatus;
+    final voiceColor = voiceActive
+        ? (voiceStatus == 'ACTIVE' ? Colors.green : voiceStatus == 'ERROR' ? Colors.red : Colors.grey)
+        : Colors.grey;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -325,39 +365,31 @@ class HomeScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.mic,
-              size: 18,
-              color: monitor.voiceDetectionOn ? Colors.purple : Colors.grey),
+          Icon(Icons.mic, size: 18, color: voiceColor),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Voice Detection',
+                  'Voice Emergency Detection',
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                 ),
-                if (monitor.voiceDetectionOn)
-                  Text(
-                    'Mic: ${monitor.voiceMicStatus}',
-                    style: TextStyle(
-                      color: monitor.voiceMicStatus == 'ACTIVE'
-                          ? Colors.green
-                          : monitor.voiceMicStatus == 'ERROR'
-                              ? Colors.red
-                              : Colors.grey,
-                      fontSize: 11,
-                    ),
+                Text(
+                  voiceActive
+                      ? '● AUTO-ACTIVE — Mic: $voiceStatus'
+                      : monitor.isProtecting
+                          ? '● WAITING — Requesting permission...'
+                          : '● OFF — Enable Protection to activate',
+                  style: TextStyle(
+                    color: voiceColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
+                ),
               ],
             ),
           ),
-          if (monitor.isProtecting)
-            Switch(
-              value: monitor.voiceDetectionOn,
-              onChanged: (v) => monitor.toggleVoiceDetection(v),
-              activeColor: Colors.purple,
-            ),
         ],
       ),
     );
@@ -465,6 +497,84 @@ class HomeScreen extends StatelessWidget {
               )),
         ],
       ),
+    );
+  }
+
+  Widget _buildSpeedCard(SafetyMonitorService monitor) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+      ),
+      child: Column(
+        children: [
+          Text(
+            'CURRENT SPEED',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 12,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${monitor.currentSpeedKmh.toStringAsFixed(1)}',
+            style: TextStyle(
+              color: monitor.currentSpeedKmh < 2.5
+                  ? Colors.grey
+                  : monitor.currentSpeedKmh < 30
+                      ? Colors.cyan
+                      : Colors.orange,
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'monospace',
+            ),
+          ),
+          Text(
+            'km/h',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildMiniLabel(
+                'GPS',
+                monitor.gpsStatus,
+                _getGpsStatusColor(monitor.gpsStatus),
+              ),
+              const SizedBox(width: 20),
+              _buildMiniLabel(
+                'ACC',
+                '${monitor.gpsAccuracy.toStringAsFixed(0)}m',
+                monitor.gpsAccuracy > 30 ? Colors.red : Colors.green,
+              ),
+              const SizedBox(width: 20),
+              _buildMiniLabel(
+                'STATE',
+                monitor.gpsIsStationary ? 'STILL' : 'MOVING',
+                monitor.gpsIsStationary ? Colors.grey : Colors.cyan,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniLabel(String label, String value, Color valueColor) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 10)),
+        Text(value,
+            style: TextStyle(
+                color: valueColor, fontSize: 12, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 

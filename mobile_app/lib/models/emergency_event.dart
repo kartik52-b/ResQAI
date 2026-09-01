@@ -1,5 +1,3 @@
-import 'sensor_data.dart';
-
 /// Activity classification
 enum ActivityType {
   normal,

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../models/emergency_event.dart';
 import '../config/thresholds.dart';
 import 'sensor_fusion.dart';

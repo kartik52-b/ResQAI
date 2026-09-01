@@ -102,11 +102,9 @@ class AccidentDetector {
   double _previousSpeedKmh = 0;
   DateTime? _previousSpeedTimestamp;
   double _maxSpeedDuringMovement = 0;
-  DateTime? _movementStartTime;
 
   // --- Deceleration tracking ---
   DateTime? _decelerationStartTime;
-  double _speedAtDecelerationStart = 0;
   double _decelerationRate = 0; // km/h per second
 
   // --- Sensor anomaly tracking ---
@@ -122,6 +120,10 @@ class AccidentDetector {
   // --- Current sensor values (for logging) ---
   double _lastAccelNet = 0;
   double _lastGyroMag = 0;
+
+  // --- Last known GPS location (for fallback emergency trigger) ---
+  double _lastKnownLatitude = 0;
+  double _lastKnownLongitude = 0;
 
   // --- Detection log ---
   final List<DetectionLog> _detectionLog = [];
@@ -147,7 +149,7 @@ class AccidentDetector {
     _lastAccelNet = accelNetMagnitude;
     _lastGyroMag = gyroMagnitude;
 
-    // Track anomalies during deceleration phase
+    // === PATH A: Track anomalies during deceleration phase (vehicle crash) ===
     if (_phase == AccidentPhase.suddenDeceleration ||
         _phase == AccidentPhase.possibleImpact) {
       if (accelNetMagnitude > AccidentThresholds.impactThreshold) {
@@ -166,11 +168,42 @@ class AccidentDetector {
       // If we're in suddenDeceleration and now have an impact signal, advance
       if (_phase == AccidentPhase.suddenDeceleration &&
           (_impactDetectedDuringDecel || _rotationDetectedDuringDecel)) {
+        _impactConfirmedTime = DateTime.now();
+        _stationaryCountAfterImpact = 0;
         _transition(
           AccidentPhase.possibleImpact,
           _impactDetectedDuringDecel
               ? 'Impact detected (accel=${_peakAccelDuringDeceleration.toStringAsFixed(1)} m/s²)'
               : 'Abnormal rotation detected (gyro=${_peakGyroDuringDeceleration.toStringAsFixed(1)} deg/s)',
+        );
+      }
+    }
+
+    // === PATH B: Direct severe impact detection (fall, collision while walking) ===
+    // If the device is IDLE or in normalMoving at low speed and detects a SEVERE
+    // impact (≥40 m/s² ≈ 4g) or extreme rotation (≥150 deg/s), enter possibleImpact
+    // directly. This catches falls, being hit, or collision at any speed.
+    // Requires very high threshold to avoid false positives from phone drops.
+    if ((_phase == AccidentPhase.idle || _phase == AccidentPhase.normalMoving) &&
+        !_hasTriggered) {
+      final bool severeImpact = accelNetMagnitude >= 40.0; // ~4g
+      final bool extremeRotation = gyroMagnitude >= 150.0;
+      final bool bothAnomalous = accelNetMagnitude >= 20.0 && gyroMagnitude >= 80.0;
+
+      if (severeImpact || extremeRotation || bothAnomalous) {
+        _peakAccelDuringDeceleration = accelNetMagnitude;
+        _peakGyroDuringDeceleration = gyroMagnitude;
+        _impactDetectedDuringDecel = severeImpact || bothAnomalous;
+        _rotationDetectedDuringDecel = extremeRotation || bothAnomalous;
+        _maxSpeedDuringMovement = _previousSpeedKmh;
+        _impactConfirmedTime = DateTime.now();
+        _stationaryCountAfterImpact = 0;
+
+        _transition(
+          AccidentPhase.possibleImpact,
+          'DIRECT IMPACT: accel=${accelNetMagnitude.toStringAsFixed(1)} m/s², '
+          'gyro=${gyroMagnitude.toStringAsFixed(1)} deg/s '
+          '(speed=${_previousSpeedKmh.toStringAsFixed(1)} km/h)',
         );
       }
     }
@@ -204,6 +237,8 @@ class AccidentDetector {
 
     _previousSpeedKmh = speed;
     _previousSpeedTimestamp = now;
+    _lastKnownLatitude = gpsData.latitude;
+    _lastKnownLongitude = gpsData.longitude;
     onUpdate?.call();
   }
 
@@ -213,7 +248,6 @@ class AccidentDetector {
 
   void _handleIdle(double speed, DateTime now) {
     if (speed > AccidentThresholds.movingSpeedThreshold) {
-      _movementStartTime = now;
       _maxSpeedDuringMovement = speed;
       _resetDecelerationTracking();
       _resetImpactTracking();
@@ -235,7 +269,6 @@ class AccidentDetector {
     if (decel > AccidentThresholds.decelerationRateThreshold &&
         _maxSpeedDuringMovement >= AccidentThresholds.movingSpeedThreshold) {
       _decelerationStartTime = now;
-      _speedAtDecelerationStart = _previousSpeedKmh;
       _peakAccelDuringDeceleration = _lastAccelNet;
       _peakGyroDuringDeceleration = _lastGyroMag;
       _impactDetectedDuringDecel = false;
@@ -262,7 +295,6 @@ class AccidentDetector {
       );
     } else if (speed < AccidentThresholds.stationaryThreshold) {
       // Slow movement or stopped — no anomaly, return to idle
-      _movementStartTime = null;
       _maxSpeedDuringMovement = 0;
       _transition(AccidentPhase.idle,
           'Speed dropped to ${speed.toStringAsFixed(1)} km/h without anomaly');
@@ -274,7 +306,6 @@ class AccidentDetector {
     if (speed > AccidentThresholds.movingSpeedThreshold) {
       _resetDecelerationTracking();
       _resetImpactTracking();
-      _movementStartTime = now;
       _maxSpeedDuringMovement = speed;
       _transition(AccidentPhase.normalMoving,
           'Speed recovered to ${speed.toStringAsFixed(1)} km/h — normal braking');
@@ -312,7 +343,6 @@ class AccidentDetector {
           'Speed recovered to ${speed.toStringAsFixed(1)} km/h — false alarm');
       _resetDecelerationTracking();
       _resetImpactTracking();
-      _movementStartTime = now;
       _maxSpeedDuringMovement = speed;
       return;
     }
@@ -329,6 +359,23 @@ class AccidentDetector {
       _transition(AccidentPhase.postEventInactivity,
           'Device stationary for ${_stationaryCountAfterImpact} consecutive readings');
     }
+
+    // FALLBACK: If GPS is not providing speed data (e.g., GPS inactive) but we
+    // have accelerometer data showing the device is inactive (no movement),
+    // advance after a time-based check. This prevents getting stuck when GPS
+    // is unavailable but a real impact was detected.
+    if (_impactConfirmedTime != null) {
+      final secondsSinceImpact = now.difference(_impactConfirmedTime!).inSeconds;
+      final bool sensorsInactive = _lastAccelNet < 2.0 && _lastGyroMag < 20.0;
+
+      if (secondsSinceImpact >= 8 && sensorsInactive &&
+          _stationaryCountAfterImpact >= 2) {
+        _transition(AccidentPhase.postEventInactivity,
+            'Sensor inactivity confirmed (${secondsSinceImpact}s since impact, '
+            'accel=${_lastAccelNet.toStringAsFixed(1)}, '
+            'gyro=${_lastGyroMag.toStringAsFixed(1)})');
+      }
+    }
   }
 
   void _handlePostEventInactivity(double speed, DateTime now, GpsData gpsData) {
@@ -338,7 +385,6 @@ class AccidentDetector {
           'Speed recovered — false alarm during inactivity check');
       _resetDecelerationTracking();
       _resetImpactTracking();
-      _movementStartTime = now;
       _maxSpeedDuringMovement = speed;
       return;
     }
@@ -351,6 +397,39 @@ class AccidentDetector {
         // All conditions met — trigger emergency
         _triggerEmergency(gpsData, secondsSinceImpact);
       }
+    }
+  }
+
+  /// Called by SafetyMonitorService when fused sensor data arrives but GPS
+  /// hasn't updated. Allows the state machine to advance via sensor inactivity.
+  /// This is critical for the Path B (direct impact) flow when GPS is unavailable.
+  void checkSensorInactivity() {
+    if (_phase != AccidentPhase.possibleImpact &&
+        _phase != AccidentPhase.postEventInactivity) {
+      return;
+    }
+    if (_impactConfirmedTime == null) return;
+
+    final now = DateTime.now();
+    final secondsSinceImpact = now.difference(_impactConfirmedTime!).inSeconds;
+    final bool sensorsInactive = _lastAccelNet < 2.0 && _lastGyroMag < 20.0;
+
+    if (_phase == AccidentPhase.possibleImpact && sensorsInactive &&
+        secondsSinceImpact >= 8) {
+      _transition(AccidentPhase.postEventInactivity,
+          'Sensor-based inactivity (${secondsSinceImpact}s since impact)');
+    }
+
+    if (_phase == AccidentPhase.postEventInactivity &&
+        secondsSinceImpact >= AccidentThresholds.postImpactInactivitySeconds) {
+      // Create a minimal GpsData for the emergency trigger
+      final fallbackGps = GpsData(
+        latitude: _lastKnownLatitude,
+        longitude: _lastKnownLongitude,
+        speed: 0,
+        timestamp: now,
+      );
+      _triggerEmergency(fallbackGps, secondsSinceImpact);
     }
   }
 
@@ -482,7 +561,6 @@ class AccidentDetector {
 
   void _resetDecelerationTracking() {
     _decelerationStartTime = null;
-    _speedAtDecelerationStart = 0;
     _decelerationRate = 0;
   }
 
@@ -536,7 +614,6 @@ class AccidentDetector {
     _resetDecelerationTracking();
     _resetImpactTracking();
     _maxSpeedDuringMovement = 0;
-    _movementStartTime = null;
     _lastScore = 0;
     onUpdate?.call();
   }
@@ -549,12 +626,13 @@ class AccidentDetector {
     _previousSpeedKmh = 0;
     _previousSpeedTimestamp = null;
     _maxSpeedDuringMovement = 0;
-    _movementStartTime = null;
     _resetDecelerationTracking();
     _resetImpactTracking();
     _lastAccelNet = 0;
     _lastGyroMag = 0;
     _lastScore = 0;
+    _lastKnownLatitude = 0;
+    _lastKnownLongitude = 0;
     _detectionLog.clear();
     onUpdate?.call();
   }

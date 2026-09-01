@@ -62,6 +62,16 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
 
         methodChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
+                // Dismiss emergency notification
+                "dismissEmergencyNotification" -> {
+                    try {
+                        ResQMonitoringService.dismissEmergencyNotificationStatic(this)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to dismiss emergency notification: ${e.message}")
+                    }
+                    result.success(true)
+                }
+
                 // Foreground service control
                 "startForegroundService" -> {
                     startMonitoringService()

@@ -22,6 +22,7 @@ class IncidentStatus(str, Enum):
 class Location(BaseModel):
     latitude: float
     longitude: float
+    accuracy: Optional[float] = None  # GPS accuracy in meters
 
 
 class TimelineEntry(BaseModel):
@@ -37,12 +38,21 @@ class IncidentCreate(BaseModel):
     impact_magnitude: float = 0.0
     emergency_score: int = 0
     severity: str = "LOW"
+    emergency_type: str = "unknown"  # speed_drop, voice, impact, etc.
     timeline: List[TimelineEntry] = []
+
+
+class LocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
+    accuracy: Optional[float] = None
+    speed_kmh: Optional[float] = None
 
 
 class IncidentResponse(BaseModel):
     id: str
     incident_id: str
+    access_token: str
     user_id: Optional[str] = None
     location: Location
     time: str
@@ -51,6 +61,8 @@ class IncidentResponse(BaseModel):
     emergency_score: int
     severity: str
     status: str
+    emergency_type: str
+    last_updated: Optional[str] = None
     timeline: List[TimelineEntry]
 
 

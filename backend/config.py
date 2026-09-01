@@ -22,5 +22,8 @@ class Settings:
         "ALLOWED_ORIGINS", "*"
     ).split(",")
 
+    # Google Gemini API Key (for future AI features)
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+
 
 settings = Settings()

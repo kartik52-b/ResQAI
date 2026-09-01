@@ -33,6 +33,12 @@ class ResQMonitoringService : Service() {
         fun setIsRunning(running: Boolean) { isRunning = running }
         fun getIsRunning() = isRunning
         fun setMethodChannel(channel: MethodChannel?) { methodChannel = channel }
+
+        /** Dismiss emergency notification from any context (static). */
+        fun dismissEmergencyNotificationStatic(context: Context) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.cancel(EMERGENCY_NOTIFICATION_ID)
+        }
     }
 
     private var wakeLock: PowerManager.WakeLock? = null

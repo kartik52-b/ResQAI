@@ -1,34 +1,60 @@
-# Freebuff
+# =============================================
+# RESQ AI — .gitignore
+# =============================================
+
+# ---- Freebuff workspace ----
 .freebuff/
 
-# Flutter
+# ---- Flutter build artifacts ----
 mobile_app/.dart_tool/
 mobile_app/build/
 mobile_app/.flutter-plugins
 mobile_app/.flutter-plugins-dependencies
 mobile_app/.packages
+mobile_app/**/build/
+mobile_app/**/*.apk
+mobile_app/**/*.aab
+mobile_app/**/*.jks
+mobile_app/**/*.keystore
 
-# Android
+# ---- iOS / macOS ephemeral ----
+mobile_app/ios/Flutter/ephemeral/
+mobile_app/macos/Flutter/ephemeral/
+mobile_app/ios/Pods/
+mobile_app/macos/Pods/
+
+# ---- Android ----
 **/android/.gradle/
 **/android/local.properties/
-*.jks
-*.keystore
+**/android/build/
+**/android/app/build/
+**/android/build/reports/
 
-# Secrets
+# ---- Secrets / Environment ----
 .env
 .env.*
 !.env.example
 
-# Python
+# ---- Python ----
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
 .venv/
 venv/
 
-# IDE
+# ---- IDE ----
 .vscode/
 .idea/
+*.iml
+*.swp
 
-# OS
+# ---- OS ----
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# ---- Database ----
+*.db
+*.sqlite
+*.sqlite3

@@ -23,10 +23,13 @@ class GyroscopeService {
     _subscription = gyroscopeEventStream(
       samplingPeriod: SensorInterval.gameInterval,
     ).listen((event) {
+      // sensors_plus delivers gyroscope values in RAD/S.
+      // Convert to DEG/S for use with detection thresholds.
+      const double radToDeg = 180.0 / 3.141592653589793;
       final data = GyroscopeData(
-        x: event.x,
-        y: event.y,
-        z: event.z,
+        x: event.x * radToDeg,
+        y: event.y * radToDeg,
+        z: event.z * radToDeg,
         timestamp: DateTime.now(),
       );
       _latest = data;
