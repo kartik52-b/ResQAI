@@ -49,7 +49,7 @@ class _AppShellState extends State<AppShell> {
           setState(() => _currentIndex = index);
         },
         backgroundColor: navColor,
-        indicatorColor: Colors.cyan.withOpacity(0.2),
+        indicatorColor: Colors.cyan.withValues(alpha: 0.2),
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined, color: Colors.grey),

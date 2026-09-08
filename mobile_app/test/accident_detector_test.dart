@@ -42,10 +42,10 @@ void main() {
       detector.onGpsUpdate(_gpsAtSpeed(0, time: baseTime));
       expect(detector.phase, AccidentPhase.idle);
 
-      detector.onGpsUpdate(_gpsAtSpeed(5, time: baseTime.add(Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(5, time: baseTime.add(const Duration(seconds: 1))));
       expect(detector.phase, AccidentPhase.idle);
 
-      detector.onGpsUpdate(_gpsAtSpeed(10, time: baseTime.add(Duration(seconds: 2))));
+      detector.onGpsUpdate(_gpsAtSpeed(10, time: baseTime.add(const Duration(seconds: 2))));
       expect(detector.phase, AccidentPhase.idle);
     });
 
@@ -56,7 +56,7 @@ void main() {
 
       // Step 2: Rapid deceleration (>18 km/h/s threshold)
       // 60→20 in 1 second = 40 km/h/s deceleration
-      detector.onGpsUpdate(_gpsAtSpeed(20, time: baseTime.add(Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(20, time: baseTime.add(const Duration(seconds: 1))));
       expect(detector.phase, AccidentPhase.suddenDeceleration);
 
       // Step 3: Feed impact signal while in deceleration
@@ -105,10 +105,10 @@ void main() {
       expect(detector.phase, AccidentPhase.normalMoving);
 
       // Gradual deceleration (no impact)
-      detector.onGpsUpdate(_gpsAtSpeed(35, time: baseTime.add(Duration(seconds: 1))));
-      detector.onGpsUpdate(_gpsAtSpeed(25, time: baseTime.add(Duration(seconds: 2))));
-      detector.onGpsUpdate(_gpsAtSpeed(10, time: baseTime.add(Duration(seconds: 3))));
-      detector.onGpsUpdate(_gpsAtSpeed(0, time: baseTime.add(Duration(seconds: 4))));
+      detector.onGpsUpdate(_gpsAtSpeed(35, time: baseTime.add(const Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(25, time: baseTime.add(const Duration(seconds: 2))));
+      detector.onGpsUpdate(_gpsAtSpeed(10, time: baseTime.add(const Duration(seconds: 3))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, time: baseTime.add(const Duration(seconds: 4))));
 
       // No impact signal → should return to idle
       expect(detector.phase, AccidentPhase.idle);
@@ -119,20 +119,20 @@ void main() {
       expect(detector.phase, AccidentPhase.normalMoving);
 
       // Gradual stop over 5 seconds
-      detector.onGpsUpdate(_gpsAtSpeed(20, time: baseTime.add(Duration(seconds: 1))));
-      detector.onGpsUpdate(_gpsAtSpeed(10, time: baseTime.add(Duration(seconds: 2))));
-      detector.onGpsUpdate(_gpsAtSpeed(0, time: baseTime.add(Duration(seconds: 3))));
+      detector.onGpsUpdate(_gpsAtSpeed(20, time: baseTime.add(const Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(10, time: baseTime.add(const Duration(seconds: 2))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, time: baseTime.add(const Duration(seconds: 3))));
 
       expect(detector.phase, AccidentPhase.idle);
     });
 
     test('speed recovery during deceleration returns to normalMoving', () {
       detector.onGpsUpdate(_gpsAtSpeed(60, time: baseTime));
-      detector.onGpsUpdate(_gpsAtSpeed(30, time: baseTime.add(Duration(seconds: 1)))); // rapid drop
+      detector.onGpsUpdate(_gpsAtSpeed(30, time: baseTime.add(const Duration(seconds: 1)))); // rapid drop
       expect(detector.phase, AccidentPhase.suddenDeceleration);
 
       // Speed recovers
-      detector.onGpsUpdate(_gpsAtSpeed(50, time: baseTime.add(Duration(seconds: 2))));
+      detector.onGpsUpdate(_gpsAtSpeed(50, time: baseTime.add(const Duration(seconds: 2))));
       expect(detector.phase, AccidentPhase.normalMoving);
     });
 
@@ -146,7 +146,7 @@ void main() {
 
     test('onVerificationComplete returns to IDLE', () {
       detector.onGpsUpdate(_gpsAtSpeed(60, time: baseTime));
-      detector.onGpsUpdate(_gpsAtSpeed(30, time: baseTime.add(Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(30, time: baseTime.add(const Duration(seconds: 1))));
       detector.updateSensorData(40.0, 100.0);
 
       // Force to verifying
@@ -167,23 +167,23 @@ void main() {
       // 1. Moving at high speed
       detector.onGpsUpdate(_gpsAtSpeed(60, time: now));
       // 2. Rapid deceleration
-      detector.onGpsUpdate(_gpsAtSpeed(20, time: now.add(Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(20, time: now.add(const Duration(seconds: 1))));
       // 3. Impact detected while decelerating → enters possibleImpact
       detector.updateSensorData(40.0, 100.0);
       expect(detector.phase, AccidentPhase.possibleImpact);
 
       // 4. Speed drops to near zero — stationaryCount increments but stays < required (4)
-      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(Duration(seconds: 2))));
-      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(Duration(seconds: 3))));
-      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(Duration(seconds: 4))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(const Duration(seconds: 2))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(const Duration(seconds: 3))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(const Duration(seconds: 4))));
       expect(detector.phase, AccidentPhase.possibleImpact);
 
       // 5. 4th stationary reading → stationaryCount reaches 4 → postEventInactivity
-      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(Duration(seconds: 5))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(const Duration(seconds: 5))));
       expect(detector.phase, AccidentPhase.postEventInactivity);
 
       // 6. Post-impact inactivity exceeds threshold (6s since impact) → triggers emergency
-      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(Duration(seconds: 15))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, time: now.add(const Duration(seconds: 15))));
       expect(detector.phase, AccidentPhase.verifying);
       expect(detectedEvent, isNotNull);
     });
@@ -208,7 +208,7 @@ void main() {
       expect(detector.phase, AccidentPhase.idle);
 
       // Walking then stopping → still IDLE (never entered normalMoving)
-      detector.onGpsUpdate(_gpsAtSpeed(0, time: baseTime.add(Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, time: baseTime.add(const Duration(seconds: 1))));
       expect(detector.phase, AccidentPhase.idle);
     });
 
@@ -218,9 +218,9 @@ void main() {
       expect(detector.phase, AccidentPhase.normalMoving);
 
       // Small jitter
-      detector.onGpsUpdate(_gpsAtSpeed(55, time: baseTime.add(Duration(seconds: 1))));
-      detector.onGpsUpdate(_gpsAtSpeed(58, time: baseTime.add(Duration(seconds: 2))));
-      detector.onGpsUpdate(_gpsAtSpeed(56, time: baseTime.add(Duration(seconds: 3))));
+      detector.onGpsUpdate(_gpsAtSpeed(55, time: baseTime.add(const Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(58, time: baseTime.add(const Duration(seconds: 2))));
+      detector.onGpsUpdate(_gpsAtSpeed(56, time: baseTime.add(const Duration(seconds: 3))));
       expect(detector.phase, AccidentPhase.normalMoving);
     });
   });

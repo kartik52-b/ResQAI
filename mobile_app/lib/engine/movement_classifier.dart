@@ -249,7 +249,7 @@ class MovementClassifier {
         _consecutiveCount = 0;
         return (_currentState, 'confirmed from ${oldState.name}');
       }
-      return (_currentState, 'candidate=${candidate.name} (${_consecutiveCount}/$_hysteresisCount)');
+      return (_currentState, 'candidate=${candidate.name} ($_consecutiveCount/$_hysteresisCount)');
     } else {
       // New candidate — restart counter
       _candidateState = candidate;

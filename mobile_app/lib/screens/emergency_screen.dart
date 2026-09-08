@@ -23,7 +23,7 @@ class EmergencyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.97),
+      backgroundColor: Colors.black.withValues(alpha: 0.97),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -37,7 +37,7 @@ class EmergencyScreen extends StatelessWidget {
                 height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.red.withOpacity(0.2),
+                  color: Colors.red.withValues(alpha: 0.2),
                   border: Border.all(color: Colors.red, width: 3),
                 ),
                 child: const Icon(

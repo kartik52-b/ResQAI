@@ -64,7 +64,7 @@ void main() {
 
   group('EmergencyThresholds', () {
     test('scoring weights sum to approximately 1.0', () {
-      final sum = EmergencyThresholds.impactWeight +
+      const sum = EmergencyThresholds.impactWeight +
           EmergencyThresholds.speedChangeWeight +
           EmergencyThresholds.rotationWeight +
           EmergencyThresholds.inactivityWeight +

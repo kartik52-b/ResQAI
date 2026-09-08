@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.flutter.plugin.common.MethodChannel
 
@@ -20,6 +21,7 @@ import io.flutter.plugin.common.MethodChannel
 class ResQMonitoringService : Service() {
 
     companion object {
+        private const val TAG = "ResQ_MonitoringService"
         const val CHANNEL_ID = "resq_monitoring_channel"
         const val EMERGENCY_CHANNEL_ID = "resq_emergency_channel"
         const val NOTIFICATION_ID = 1001
@@ -33,11 +35,84 @@ class ResQMonitoringService : Service() {
         fun setIsRunning(running: Boolean) { isRunning = running }
         fun getIsRunning() = isRunning
         fun setMethodChannel(channel: MethodChannel?) { methodChannel = channel }
+        fun getMethodChannel(): MethodChannel? = methodChannel
 
         /** Dismiss emergency notification from any context (static). */
         fun dismissEmergencyNotificationStatic(context: Context) {
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.cancel(EMERGENCY_NOTIFICATION_ID)
+        }
+
+        /**
+         * Launch the native emergency popup activity (static).
+         * Shows full-screen over lock screen with I'M OK / I NEED HELP buttons.
+         */
+        fun launchEmergencyPopup(context: Context, eventId: String, countdownSeconds: Int = 120) {
+            if (EmergencyPopupActivity.isShowing) {
+                Log.w(TAG, "Emergency popup already showing — skipping duplicate launch")
+                return
+            }
+
+            val intent = Intent(context, EmergencyPopupActivity::class.java).apply {
+                putExtra(EmergencyPopupActivity.EXTRA_EMERGENCY_EVENT_ID, eventId)
+                putExtra(EmergencyPopupActivity.EXTRA_COUNTDOWN_SECONDS, countdownSeconds)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+            }
+
+            try {
+                context.startActivity(intent)
+                Log.d(TAG, "Emergency popup launched — event: $eventId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to launch emergency popup: ${e.message}")
+                // Fallback: show high-priority notification
+                showEmergencyNotificationStatic(context,
+                    "🚨 EMERGENCY DETECTED",
+                    "Are you alright? Open ResQ AI to respond."
+                )
+            }
+        }
+
+        /**
+         * Dismiss the emergency popup (static).
+         */
+        fun dismissEmergencyPopup(context: Context, eventId: String) {
+            val intent = Intent(EmergencyPopupActivity.ACTION_DISMISS_POPUP).apply {
+                putExtra(EmergencyPopupActivity.EXTRA_EMERGENCY_EVENT_ID, eventId)
+                setPackage(context.packageName)
+            }
+            context.sendBroadcast(intent)
+        }
+
+        /**
+         * Show a high-priority emergency notification (static).
+         */
+        fun showEmergencyNotificationStatic(context: Context, title: String, body: String) {
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                putExtra("open_emergency", true)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+
+            val pendingIntent = PendingIntent.getActivity(
+                context, EMERGENCY_NOTIFICATION_ID, launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notification = NotificationCompat.Builder(context, EMERGENCY_CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(false)
+                .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setFullScreenIntent(pendingIntent, true)
+                .build()
+
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.notify(EMERGENCY_NOTIFICATION_ID, notification)
         }
     }
 

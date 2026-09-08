@@ -19,13 +19,13 @@ class ProtectionToggle extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
           color: isOn
-              ? Colors.green.withOpacity(0.15)
-              : Colors.grey.withOpacity(0.15),
+              ? Colors.green.withValues(alpha: 0.15)
+              : Colors.grey.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isOn
-                ? Colors.green.withOpacity(0.4)
-                : Colors.grey.withOpacity(0.3),
+                ? Colors.green.withValues(alpha: 0.4)
+                : Colors.grey.withValues(alpha: 0.3),
             width: 1.5,
           ),
         ),

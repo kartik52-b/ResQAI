@@ -62,7 +62,7 @@ class EmergencyScorer {
   double _calculateImpactScore(double magnitude) {
     if (magnitude <= EmergencyThresholds.impactThreshold) return 0;
     // Scale from threshold to peak: 0-100
-    final range = EmergencyThresholds.impactPeakThreshold -
+    const range = EmergencyThresholds.impactPeakThreshold -
         EmergencyThresholds.impactThreshold;
     if (range <= 0) return magnitude > 0 ? 100 : 0;
     final normalized =
@@ -72,7 +72,7 @@ class EmergencyScorer {
 
   double _calculateSpeedChangeScore(double speedChange) {
     if (speedChange <= EmergencyThresholds.speedChangeThreshold) return 0;
-    final range = 60.0 - EmergencyThresholds.speedChangeThreshold;
+    const range = 60.0 - EmergencyThresholds.speedChangeThreshold;
     if (range <= 0) return 100;
     final normalized = speedChange / range;
     return (normalized * 100).clamp(0, 100);
@@ -80,7 +80,7 @@ class EmergencyScorer {
 
   double _calculateRotationScore(double rotation) {
     if (rotation <= EmergencyThresholds.rotationThreshold) return 0;
-    final range = 500.0 - EmergencyThresholds.rotationThreshold;
+    const range = 500.0 - EmergencyThresholds.rotationThreshold;
     if (range <= 0) return 100;
     final normalized = rotation / range;
     return (normalized * 100).clamp(0, 100);

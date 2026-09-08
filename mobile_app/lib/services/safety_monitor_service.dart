@@ -244,6 +244,20 @@ class SafetyMonitorService extends ChangeNotifier {
     };
     _orchestrator.onEmergencyNotification = _showEmergencyNotification;
 
+    // Wire up native Android emergency popup callbacks
+    _nativeBridge.onEmergencyUserOk = (eventId) {
+      debugPrint('[SafetyMonitorService] Native popup: user pressed OK — event: $eventId');
+      _orchestrator.userConfirmedOk();
+    };
+    _nativeBridge.onEmergencyUserHelp = (eventId) {
+      debugPrint('[SafetyMonitorService] Native popup: user pressed HELP — event: $eventId');
+      _orchestrator.userConfirmedHelp();
+    };
+    _nativeBridge.onEmergencyTimeout = (eventId) {
+      debugPrint('[SafetyMonitorService] Native popup: timeout — event: $eventId');
+      _orchestrator.userConfirmedHelp(); // Auto-confirm emergency
+    };
+
     _voiceDetector = VoiceEmergencyDetector(_nativeBridge);
     _orchestrator.attachVoiceDetector(_voiceDetector);
 
@@ -541,10 +555,19 @@ class SafetyMonitorService extends ChangeNotifier {
   }
 
   void _showEmergencyNotification() {
-    // Notify the Android foreground service to show a high-priority notification
+    // Launch the native Android emergency popup over the lock screen
+    final eventId = _orchestrator.currentEvent?.id ?? 'emergency-${DateTime.now().millisecondsSinceEpoch}';
+    debugPrint('[SafetyMonitorService] Launching native emergency popup — event: $eventId');
+
+    _nativeBridge.launchEmergencyPopup(
+      eventId: eventId,
+      countdownSeconds: EmergencySpeedThresholds.verificationTimeout,
+    );
+
+    // Also show high-priority notification as fallback (for Android 14+ restrictions)
     _nativeBridge.showEmergencyNotification(
       title: '🚨 EMERGENCY DETECTED',
-      body: 'Are you alright? Open ResQ AI to respond.',
+      body: 'Are you alright? Tap to respond.',
     );
   }
 

@@ -92,7 +92,7 @@ class EmergencyOrchestrator {
   Function()? onEmergencyNotification;
 
   // Reference to GpsService for requesting fresh location at confirmation time
-  GpsService? _gpsService;
+  final GpsService? _gpsService;
 
   EmergencyOrchestrator({
     required NativeServiceBridge bridge,
@@ -331,7 +331,7 @@ class EmergencyOrchestrator {
 
     if (_voiceRetryCount < _maxVoiceRetries && _remainingSeconds > 10) {
       debugPrint('EmergencyOrchestrator: No response, retrying voice alert '
-          '(${_voiceRetryCount}/$_maxVoiceRetries, ${_remainingSeconds}s remaining)');
+          '($_voiceRetryCount/$_maxVoiceRetries, ${_remainingSeconds}s remaining)');
       _statusMessage('No response — asking again (${_remainingSeconds}s remaining)');
 
       // Pause briefly, then retry
@@ -377,6 +377,12 @@ class EmergencyOrchestrator {
     _statusMessage('Emergency cancelled — you are safe');
     _speedDropDetector.onVerificationComplete();
 
+    // Dismiss the native Android emergency popup if it's showing
+    final eventId = _currentEvent?.id ?? '';
+    if (eventId.isNotEmpty) {
+      _bridge.dismissEmergencyPopup(eventId: eventId);
+    }
+
     // Mark incident as resolved on backend
     if (_currentIncidentId != null) {
       _apiService.resolveIncident(_currentIncidentId!).then((success) {
@@ -396,6 +402,12 @@ class EmergencyOrchestrator {
   Future<void> _confirmAndAct() async {
     _stopCountdown();
     _voiceAlert.stop();
+
+    // Dismiss the native Android emergency popup if it's showing
+    final eventId = _currentEvent?.id ?? '';
+    if (eventId.isNotEmpty) {
+      _bridge.dismissEmergencyPopup(eventId: eventId);
+    }
 
     _setState(OrchestratorState.emergencyConfirmed);
     _lifeReplay.takeSnapshot();

@@ -208,6 +208,29 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
                     result.success(true)
                 }
 
+                // --- Native Emergency Popup ---
+                "launchEmergencyPopup" -> {
+                    val eventId = call.argument<String>("eventId") ?: "emergency-${System.currentTimeMillis()}"
+                    val countdownSeconds = call.argument<Int>("countdownSeconds") ?: 120
+                    try {
+                        ResQMonitoringService.launchEmergencyPopup(this, eventId, countdownSeconds)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to launch emergency popup: ${e.message}")
+                        result.success(false)
+                    }
+                }
+                "dismissEmergencyPopup" -> {
+                    val eventId = call.argument<String>("eventId") ?: ""
+                    try {
+                        ResQMonitoringService.dismissEmergencyPopup(this, eventId)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to dismiss emergency popup: ${e.message}")
+                        result.success(false)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }

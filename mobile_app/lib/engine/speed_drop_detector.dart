@@ -192,7 +192,7 @@ class SpeedDropDetector extends ChangeNotifier {
   }
 
   bool _detectSpeedDrop(double currentSpeed, DateTime now) {
-    final windowDuration = Duration(
+    const windowDuration = Duration(
       seconds: EmergencySpeedThresholds.speedDropWindowSeconds,
     );
 
@@ -220,7 +220,7 @@ class SpeedDropDetector extends ChangeNotifier {
   }
 
   double _getRecentMaxSpeed(DateTime now) {
-    final window = Duration(
+    const window = Duration(
       seconds: EmergencySpeedThresholds.speedDropWindowSeconds,
     );
     double maxSpeed = 0;

@@ -77,7 +77,7 @@ class _EmergencyButtonState extends State<EmergencyButton>
             boxShadow: [
               BoxShadow(
                 color: (widget.isActive ? Colors.red : Colors.orange)
-                    .withOpacity(0.4),
+                    .withValues(alpha: 0.4),
                 blurRadius: 20,
                 spreadRadius: 5,
               ),

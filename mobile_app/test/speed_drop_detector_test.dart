@@ -42,7 +42,7 @@ void main() {
       detector.onGpsUpdate(_gpsAtSpeed(0, baseTime));
       expect(detector.phase, DetectionPhase.idle);
 
-      detector.onGpsUpdate(_gpsAtSpeed(5, baseTime.add(Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(5, baseTime.add(const Duration(seconds: 1))));
       expect(detector.phase, DetectionPhase.idle);
     });
 
@@ -54,7 +54,7 @@ void main() {
       expect(detector.phase, DetectionPhase.moving);
 
       // Sudden drop to zero
-      detector.onGpsUpdate(_gpsAtSpeed(0, baseTime.add(Duration(seconds: 10))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, baseTime.add(const Duration(seconds: 10))));
       expect(detector.phase, DetectionPhase.decelerating);
     });
 
@@ -90,7 +90,7 @@ void main() {
       }
 
       // Speed recovers quickly
-      detector.onGpsUpdate(_gpsAtSpeed(50, baseTime.add(Duration(seconds: 10))));
+      detector.onGpsUpdate(_gpsAtSpeed(50, baseTime.add(const Duration(seconds: 10))));
       expect(detector.phase, DetectionPhase.moving);
     });
 
@@ -109,8 +109,8 @@ void main() {
 
     test('speed history is maintained', () {
       detector.onGpsUpdate(_gpsAtSpeed(10, baseTime));
-      detector.onGpsUpdate(_gpsAtSpeed(20, baseTime.add(Duration(seconds: 1))));
-      detector.onGpsUpdate(_gpsAtSpeed(30, baseTime.add(Duration(seconds: 2))));
+      detector.onGpsUpdate(_gpsAtSpeed(20, baseTime.add(const Duration(seconds: 1))));
+      detector.onGpsUpdate(_gpsAtSpeed(30, baseTime.add(const Duration(seconds: 2))));
 
       expect(detector.speedHistory.length, 3);
       expect(detector.speedHistory.last.speedKmh, closeTo(30, 0.1));
@@ -136,7 +136,7 @@ void main() {
         detector.onGpsUpdate(_gpsAtSpeed(4, baseTime.add(Duration(seconds: i))));
       }
       // Stop
-      detector.onGpsUpdate(_gpsAtSpeed(0, baseTime.add(Duration(seconds: 10))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, baseTime.add(const Duration(seconds: 10))));
 
       // Walking speed is below moving threshold — stays idle
       expect(detector.phase, DetectionPhase.idle);
@@ -151,9 +151,9 @@ void main() {
       }
 
       // Gradual deceleration
-      detector.onGpsUpdate(_gpsAtSpeed(15, baseTime.add(Duration(seconds: 10))));
-      detector.onGpsUpdate(_gpsAtSpeed(5, baseTime.add(Duration(seconds: 11))));
-      detector.onGpsUpdate(_gpsAtSpeed(0, baseTime.add(Duration(seconds: 12))));
+      detector.onGpsUpdate(_gpsAtSpeed(15, baseTime.add(const Duration(seconds: 10))));
+      detector.onGpsUpdate(_gpsAtSpeed(5, baseTime.add(const Duration(seconds: 11))));
+      detector.onGpsUpdate(_gpsAtSpeed(0, baseTime.add(const Duration(seconds: 12))));
 
       expect(detector.isDetecting, false);
     });

@@ -99,9 +99,9 @@ class ContactsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Row(
         children: [
@@ -132,7 +132,7 @@ class ContactsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -166,13 +166,13 @@ class ContactsScreen extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: contact.isPrimary
-              ? Colors.cyan.withOpacity(0.08)
-              : Colors.white.withOpacity(0.05),
+              ? Colors.cyan.withValues(alpha: 0.08)
+              : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: contact.isPrimary
-                ? Colors.cyan.withOpacity(0.3)
-                : Colors.white.withOpacity(0.08),
+                ? Colors.cyan.withValues(alpha: 0.3)
+                : Colors.white.withValues(alpha: 0.08),
             width: 1,
           ),
         ),
@@ -181,8 +181,8 @@ class ContactsScreen extends StatelessWidget {
             CircleAvatar(
               radius: 20,
               backgroundColor: contact.isPrimary
-                  ? Colors.cyan.withOpacity(0.2)
-                  : Colors.grey.withOpacity(0.1),
+                  ? Colors.cyan.withValues(alpha: 0.2)
+                  : Colors.grey.withValues(alpha: 0.1),
               child: Icon(
                 contact.isTestContact ? Icons.science : Icons.person,
                 size: 18,
@@ -210,7 +210,7 @@ class ContactsScreen extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.cyan.withOpacity(0.2),
+                            color: Colors.cyan.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Text(
@@ -256,9 +256,9 @@ class ContactsScreen extends StatelessWidget {
                     tooltip: 'Set as Primary',
                   ),
                 if (contact.isPrimary)
-                  IconButton(
+                  const IconButton(
                     onPressed: null,
-                    icon: const Icon(Icons.star, size: 20),
+                    icon: Icon(Icons.star, size: 20),
                     color: Colors.amber,
                     tooltip: 'Primary contact',
                   ),
@@ -328,7 +328,7 @@ class ContactsScreen extends StatelessWidget {
                   hintText: 'e.g. Mom, Dad, Friend',
                   hintStyle: TextStyle(color: Colors.grey.shade600),
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
+                  fillColor: Colors.white.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade700)),
@@ -348,7 +348,7 @@ class ContactsScreen extends StatelessWidget {
                   hintText: '+91XXXXXXXXXX',
                   hintStyle: TextStyle(color: Colors.grey.shade600),
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.05),
+                  fillColor: Colors.white.withValues(alpha: 0.05),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade700)),
@@ -403,7 +403,7 @@ class ContactsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

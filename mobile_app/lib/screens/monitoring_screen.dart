@@ -71,7 +71,7 @@ class MonitoringScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: Colors.red.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -97,7 +97,7 @@ class MonitoringScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -130,7 +130,7 @@ class MonitoringScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -170,9 +170,9 @@ class MonitoringScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -267,9 +267,9 @@ class MonitoringScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         children: [
@@ -298,9 +298,9 @@ class MonitoringScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -333,9 +333,9 @@ class MonitoringScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -405,9 +405,9 @@ class MonitoringScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -436,9 +436,9 @@ class MonitoringScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -475,9 +475,9 @@ class MonitoringScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -566,13 +566,13 @@ class MonitoringScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: monitor.demoMode
-            ? Colors.teal.withOpacity(0.08)
-            : Colors.white.withOpacity(0.05),
+            ? Colors.teal.withValues(alpha: 0.08)
+            : Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: monitor.demoMode
-              ? Colors.teal.withOpacity(0.4)
-              : Colors.white.withOpacity(0.1),
+              ? Colors.teal.withValues(alpha: 0.4)
+              : Colors.white.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -598,7 +598,7 @@ class MonitoringScreen extends StatelessWidget {
               Switch(
                 value: monitor.demoMode,
                 onChanged: (v) => monitor.toggleDemoMode(v),
-                activeColor: Colors.teal,
+                activeThumbColor: Colors.teal,
               ),
             ],
           ),
@@ -607,7 +607,7 @@ class MonitoringScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.teal.withOpacity(0.1),
+                color: Colors.teal.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -659,13 +659,13 @@ class _TestModeCardState extends State<_TestModeCard> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: monitor.testMode
-            ? Colors.orange.withOpacity(0.08)
-            : Colors.white.withOpacity(0.05),
+            ? Colors.orange.withValues(alpha: 0.08)
+            : Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: monitor.testMode
-              ? Colors.orange.withOpacity(0.4)
-              : Colors.white.withOpacity(0.1),
+              ? Colors.orange.withValues(alpha: 0.4)
+              : Colors.white.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -691,7 +691,7 @@ class _TestModeCardState extends State<_TestModeCard> {
               Switch(
                 value: monitor.testMode,
                 onChanged: (v) => monitor.toggleTestMode(v),
-                activeColor: Colors.orange,
+                activeThumbColor: Colors.orange,
               ),
             ],
           ),
@@ -819,7 +819,7 @@ class _TestModeCardState extends State<_TestModeCard> {
             activeTrackColor: Colors.orange,
             inactiveTrackColor: Colors.grey.shade800,
             thumbColor: Colors.orange,
-            overlayColor: Colors.orange.withOpacity(0.2),
+            overlayColor: Colors.orange.withValues(alpha: 0.2),
           ),
           child: Slider(
             value: value,
@@ -855,13 +855,13 @@ class _TestModeCardState extends State<_TestModeCard> {
             }
           : null,
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orange.withOpacity(0.15),
+        backgroundColor: Colors.orange.withValues(alpha: 0.15),
         foregroundColor: Colors.orange,
         disabledBackgroundColor: Colors.grey.shade800,
         disabledForegroundColor: Colors.grey.shade600,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Colors.orange.withOpacity(0.3)),
+          side: BorderSide(color: Colors.orange.withValues(alpha: 0.3)),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         minimumSize: Size.zero,

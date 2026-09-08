@@ -290,8 +290,8 @@ class AccidentDetector {
         'Speed dropped from ${_maxSpeedDuringMovement.toStringAsFixed(1)} → '
         '${speed.toStringAsFixed(1)} km/h '
         '(decel=${decel.toStringAsFixed(1)} km/h/s, '
-        'impact=${_impactDetectedDuringDecel}, '
-        'rotation=${_rotationDetectedDuringDecel})',
+        'impact=$_impactDetectedDuringDecel, '
+        'rotation=$_rotationDetectedDuringDecel)',
       );
     } else if (speed < AccidentThresholds.stationaryThreshold) {
       // Slow movement or stopped — no anomaly, return to idle
@@ -357,7 +357,7 @@ class AccidentDetector {
     // Require sustained stationary state
     if (_stationaryCountAfterImpact >= AccidentThresholds.stationaryCountRequired) {
       _transition(AccidentPhase.postEventInactivity,
-          'Device stationary for ${_stationaryCountAfterImpact} consecutive readings');
+          'Device stationary for $_stationaryCountAfterImpact consecutive readings');
     }
 
     // FALLBACK: If GPS is not providing speed data (e.g., GPS inactive) but we

@@ -58,11 +58,34 @@
             </intent-filter>
         </activity>
 
+        <!-- Emergency popup: full-screen activity shown over lock screen -->
+        <activity
+            android:name=".EmergencyPopupActivity"
+            android:exported="false"
+            android:theme="@style/EmergencyPopupTheme"
+            android:launchMode="singleInstance"
+            android:taskAffinity="com.example.resq_ai.emergency"
+            android:excludeFromRecents="true"
+            android:screenOrientation="portrait"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true" />
+
         <!-- Background monitoring foreground service -->
         <service
             android:name=".ResQMonitoringService"
             android:exported="false"
             android:foregroundServiceType="location|microphone" />
+
+        <!-- Receiver for emergency popup button actions -->
+        <receiver
+            android:name=".EmergencyResultReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.resq_ai.EMERGENCY_OK" />
+                <action android:name="com.example.resq_ai.EMERGENCY_HELP" />
+                <action android:name="com.example.resq_ai.EMERGENCY_TIMEOUT" />
+            </intent-filter>
+        </receiver>
 
         <meta-data
             android:name="flutterEmbedding"

@@ -48,7 +48,7 @@ class LifeReplay {
             _buffer.first.timestamp
                     .difference(now)
                     .abs() >
-                Duration(seconds: EmergencyThresholds.replayBufferMaxSeconds))) {
+                const Duration(seconds: EmergencyThresholds.replayBufferMaxSeconds))) {
       _buffer.removeFirst();
     }
   }

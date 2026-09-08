@@ -16,6 +16,11 @@ class NativeServiceBridge {
   Function()? onServiceStopped;
   Function(Map<String, dynamic>)? onPermissionResult;
 
+  // Emergency popup callbacks (from Android EmergencyPopupActivity)
+  Function(String)? onEmergencyUserOk;
+  Function(String)? onEmergencyUserHelp;
+  Function(String)? onEmergencyTimeout;
+
   // --- Permission result tracking ---
   // Maps permission name to a Completer that resolves when Android responds
   final Map<String, Completer<bool>> _pendingPermissions = {};
@@ -61,6 +66,23 @@ class NativeServiceBridge {
           }
         }
         break;
+
+      // Emergency popup results from Android EmergencyPopupActivity
+      case 'onEmergencyUserOk':
+        final args = call.arguments as Map?;
+        final eventId = args?['eventId'] as String? ?? '';
+        onEmergencyUserOk?.call(eventId);
+        break;
+      case 'onEmergencyUserHelp':
+        final args = call.arguments as Map?;
+        final eventId = args?['eventId'] as String? ?? '';
+        onEmergencyUserHelp?.call(eventId);
+        break;
+      case 'onEmergencyTimeout':
+        final args = call.arguments as Map?;
+        final eventId = args?['eventId'] as String? ?? '';
+        onEmergencyTimeout?.call(eventId);
+        break;
     }
   }
 
@@ -82,6 +104,35 @@ class NativeServiceBridge {
       await _channel.invokeMethod('dismissEmergencyNotification');
     } catch (e) {
       debugPrint('NativeServiceBridge: dismissEmergencyNotification error: $e');
+    }
+  }
+
+  // --- Native Emergency Popup ---
+
+  /// Launch the native Android emergency popup over the lock screen.
+  /// Shows "ARE YOU ALRIGHT?" with I'M OK / I NEED HELP buttons.
+  Future<void> launchEmergencyPopup({
+    required String eventId,
+    int countdownSeconds = 120,
+  }) async {
+    try {
+      await _channel.invokeMethod('launchEmergencyPopup', {
+        'eventId': eventId,
+        'countdownSeconds': countdownSeconds,
+      });
+    } catch (e) {
+      debugPrint('NativeServiceBridge: launchEmergencyPopup error: $e');
+    }
+  }
+
+  /// Dismiss the native emergency popup (e.g., when emergency is resolved from Flutter).
+  Future<void> dismissEmergencyPopup({required String eventId}) async {
+    try {
+      await _channel.invokeMethod('dismissEmergencyPopup', {
+        'eventId': eventId,
+      });
+    } catch (e) {
+      debugPrint('NativeServiceBridge: dismissEmergencyPopup error: $e');
     }
   }
 
