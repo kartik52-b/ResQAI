@@ -35,9 +35,6 @@ enum OrchestratorState {
 /// 4. Voice alerts are retried every ~25 seconds within the 120s window
 /// 5. Any OK response → cancel; HELP → confirm immediately; timeout → auto-confirm
 /// 6. On confirm: SMS to ALL contacts + call to PRIMARY only + backend report
-///
-/// CRITICAL: The orchestrator OWNS the countdown timer.
-/// The VerificationSystem is used ONLY for UI countdown display.
 class EmergencyOrchestrator {
   final NativeServiceBridge _bridge;
   final ApiService _apiService;
@@ -62,6 +59,10 @@ class EmergencyOrchestrator {
   String? _currentIncidentId;
   String? _currentAccessToken;
   Timer? _liveLocationTimer;
+
+  // Re-entry guard: prevents double-taps / popup + voice double-fires from
+  // running the confirm-and-act workflow (SMS/call/backend) more than once.
+  bool _confirmAndActRunning = false;
 
   // --- Unified countdown timer (ORCHESTRATOR OWNS THIS) ---
   Timer? _countdownTimer;
@@ -284,11 +285,29 @@ class EmergencyOrchestrator {
 
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      // Guard against a stale timer: if the flow state moved on (user responded,
+      // emergency cancelled, flow restarted), abandon this timer silently.
+      // This prevents the race where a user's "I'M OK" lands between the last
+      // tick and the expiry callback, causing a false auto-escalation.
+      if (_state != OrchestratorState.voiceVerifying &&
+          _state != OrchestratorState.possibleEmergency) {
+        timer.cancel();
+        return;
+      }
+
       _remainingSeconds--;
       _countdownController.add(_remainingSeconds);
 
       if (_remainingSeconds <= 0) {
         timer.cancel();
+
+        // Re-check state right before escalating — never escalate a cancelled
+        // or already-confirmed emergency.
+        if (_state != OrchestratorState.voiceVerifying &&
+            _state != OrchestratorState.possibleEmergency) {
+          return;
+        }
+
         debugPrint('EmergencyOrchestrator: Countdown expired — auto-confirming');
         _setState(OrchestratorState.noResponseTimeout);
         _confirmAndAct();
@@ -369,6 +388,8 @@ class EmergencyOrchestrator {
   }
 
   void _cancelEmergency() {
+    if (!_isProcessing) return; // Already cancelled/confirmed — ignore duplicates
+
     _stopCountdown();
     _voiceAlert.stop();
     _voiceEmergencyDetector?.cancelPendingEmergency();
@@ -400,6 +421,11 @@ class EmergencyOrchestrator {
   // ======================================================================
 
   Future<void> _confirmAndAct() async {
+    // Re-entry guard: popup timeout + voice timeout + double-tap on HELP can
+    // all land here. Run the SMS/call/backend workflow exactly once.
+    if (_confirmAndActRunning) return;
+    _confirmAndActRunning = true;
+
     _stopCountdown();
     _voiceAlert.stop();
 
@@ -448,6 +474,7 @@ class EmergencyOrchestrator {
     _statusMessage('Sending emergency SMS to contacts...');
 
     final contacts = _contactService.contacts;
+    int initialSmsSuccessCount = 0;
     if (contacts.isNotEmpty) {
       final smsResults = await _smsService.sendEmergencyToAll(
         contacts: contacts,
@@ -457,14 +484,13 @@ class EmergencyOrchestrator {
         speedKmh: speedKmh,
         emergencyScore: score,
       );
-      int successCount = 0;
       for (final result in smsResults) {
-        if (result.success) successCount++;
+        if (result.success) initialSmsSuccessCount++;
         debugPrint('SMS to ${result.contactName}: '
             '${result.success ? "SUCCESS" : "FAILED"} '
             '${result.error != null ? "(${result.error})" : ""}');
       }
-      _statusMessage('SMS sent to $successCount/${contacts.length} contacts');
+      _statusMessage('SMS sent to $initialSmsSuccessCount/${contacts.length} contacts');
     } else {
       _statusMessage('No trusted contacts configured — SMS not sent');
     }
@@ -539,10 +565,15 @@ class EmergencyOrchestrator {
       _statusMessage('Emergency confirmed — Network error');
     }
 
-    // === Step 4: Re-send SMS with emergency page link ===
-    // Update the SMS to include the live tracking link
-    if (emergencyPageUrl != null && contacts.isNotEmpty) {
-      debugPrint('[EmergencyOrchestrator] 📱 Re-sending SMS with emergency page link');
+    // === Step 4: SMS with emergency page link (fallback ONLY) ===
+    // The first SMS already delivered coordinates + Google Maps link.
+    // Re-sending to everyone would duplicate emergency alerts, so the
+    // live-tracking link is only sent when the first batch completely failed.
+    if (emergencyPageUrl != null &&
+        contacts.isNotEmpty &&
+        initialSmsSuccessCount == 0) {
+      debugPrint('[EmergencyOrchestrator] 📱 First SMS batch failed — '
+          're-sending with emergency page link');
       await _smsService.sendEmergencyToAll(
         contacts: contacts,
         latitude: latitude,
@@ -622,12 +653,38 @@ class EmergencyOrchestrator {
 
   void _complete() {
     _isProcessing = false;
+    _confirmAndActRunning = false;
     _voiceTriggered = false;
     _currentIncidentId = null;
     _currentAccessToken = null;
     Future.delayed(const Duration(seconds: 5), () {
       _setState(OrchestratorState.idle);
     });
+  }
+
+  /// Reset the orchestrator to a clean idle state WITHOUT disposing it.
+  ///
+  /// Used by SafetyMonitorService.stopProtection() so protection can be
+  /// stopped and restarted repeatedly. Calling dispose() here would kill the
+  /// countdown StreamController and VoiceAlertService permanently, silently
+  /// breaking all future emergency cycles.
+  void resetForReuse() {
+    _stopCountdown();
+    _stopLiveLocationUpdates();
+    _voiceAlert.stop();
+    // Voice retry is scheduled via Future.delayed — it self-guards via
+    // _isProcessing checks, so no timer cleanup is needed here.
+    _isProcessing = false;
+    _confirmAndActRunning = false;
+    _voiceTriggered = false;
+    _currentIncidentId = null;
+    _currentAccessToken = null;
+    _currentEvent = null;
+    _currentLocation = null;
+    _currentSpeedKmh = 0;
+    _voiceRetryCount = 0;
+    _remainingSeconds = _countdownTimeout;
+    _state = OrchestratorState.idle;
   }
 
   void _setState(OrchestratorState newState) {

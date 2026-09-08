@@ -10,6 +10,11 @@ class ApiService {
   // To change: edit this value before building.
   static const String baseUrl = 'http://10.0.2.2:8000';
 
+  /// HTTP client — injectable for tests (MockClient).
+  final http.Client _client;
+
+  ApiService({http.Client? client}) : _client = client ?? http.Client();
+
   /// Update this at runtime to point to your actual backend.
   static String _runtimeUrl = baseUrl;
   static String get effectiveBaseUrl => _runtimeUrl;
@@ -33,7 +38,7 @@ class ApiService {
     required List<ReplayEvent> timeline,
   }) async {
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$effectiveBaseUrl/emergency'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -70,7 +75,7 @@ class ApiService {
     double? speedKmh,
   }) async {
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$effectiveBaseUrl/incident/$incidentId/location'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -89,7 +94,7 @@ class ApiService {
   /// Mark an incident as resolved (emergency cancelled).
   Future<bool> resolveIncident(String incidentId) async {
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$effectiveBaseUrl/incident/$incidentId/resolve'),
       ).timeout(const Duration(seconds: 10));
       return response.statusCode == 200;
@@ -107,7 +112,7 @@ class ApiService {
   /// Create an incident record
   Future<Map<String, dynamic>?> createIncident(Incident incident) async {
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$effectiveBaseUrl/incident'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(incident.toJson()),
@@ -125,7 +130,7 @@ class ApiService {
   /// Get incident by ID
   Future<Map<String, dynamic>?> getIncident(String incidentId) async {
     try {
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$effectiveBaseUrl/incident/$incidentId'),
       ).timeout(const Duration(seconds: 10));
 
@@ -141,7 +146,7 @@ class ApiService {
   /// Get all incidents
   Future<List<Map<String, dynamic>>?> getIncidents() async {
     try {
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$effectiveBaseUrl/incidents'),
       ).timeout(const Duration(seconds: 10));
 
@@ -162,7 +167,7 @@ class ApiService {
     required double speed,
   }) async {
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$effectiveBaseUrl/location'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({

@@ -47,6 +47,9 @@ class SafetyMonitorService extends ChangeNotifier {
   // Stream subscriptions
   StreamSubscription? _fusedSubscription;
   StreamSubscription? _gpsSubscription;
+  // Countdown ticks from the orchestrator — every tick rebuilds the UI so the
+  // on-screen "ARE YOU ALRIGHT?" timer actually counts down.
+  StreamSubscription<int>? _countdownSubscription;
 
   // GPS initialization timeout
   Timer? _gpsTimeoutTimer;
@@ -283,6 +286,12 @@ class SafetyMonitorService extends ChangeNotifier {
 
     _speedDropDetector.setCallback(_onSpeedDropDetected);
     _accidentDetector.setCallback(_onAccidentDetected);
+
+    // Tick the UI every second of the emergency countdown. Without this the
+    // overlay timer stays frozen at 02:00 (stream existed but had no listener).
+    _countdownSubscription = _orchestrator.countdownStream.listen((_) {
+      notifyListeners();
+    });
   }
 
   // === PROTECTION CONTROL ===
@@ -366,7 +375,10 @@ class SafetyMonitorService extends ChangeNotifier {
     _contextEngine.resetImpact();
     _speedDropDetector.reset();
     _accidentDetector.reset();
-    _orchestrator.dispose();
+    // resetForReuse() — NOT dispose(). The orchestrator and its voice alert
+    // service must stay alive so protection can be stopped and restarted.
+    // dispose() would permanently kill the countdown stream + voice alert.
+    _orchestrator.resetForReuse();
 
     // Always stop voice detection when protection stops
     _voiceDetector.setEnabled(false);
@@ -603,8 +615,11 @@ class SafetyMonitorService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _countdownSubscription?.cancel();
+    _countdownSubscription = null;
     stopProtection();
     _voiceDetector.dispose();
+    _orchestrator.dispose();
     super.dispose();
   }
 }
