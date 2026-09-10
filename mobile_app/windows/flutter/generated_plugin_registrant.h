@@ -1,4 +1,4 @@
-//
+Get-ChildItem -Force mobile_app//
 //  Generated file. Do not edit.
 //
 
