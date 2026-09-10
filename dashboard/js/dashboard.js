@@ -3,7 +3,18 @@
  * Fetches incidents from backend and displays them with map and timeline.
  */
 
-const API_BASE = 'http://localhost:8000';
+// API base resolution:
+// 1. window.__RESQ_API_BASE__ — set before dashboard.js loads (e.g. inline <script>
+//    in index.html) to point at a backend hosted on another origin.
+// 2. localStorage 'resq_api_base' — handy override during development.
+// 3. Default: same origin (empty string). Works when the FastAPI backend is
+//    deployed alongside the dashboard; if the backend is unreachable the
+//    dashboard falls back to Demo Mode.
+// (Hardcoding http://localhost:8000 only ever worked locally — on a deployed
+// site it breaks every request, so the default is now relative.)
+const API_BASE = (typeof window !== 'undefined' && window.__RESQ_API_BASE__)
+    || localStorage.getItem('resq_api_base')
+    || '';
 let map = null;
 let markers = [];
 let selectedIncident = null;

@@ -1,0 +1,9 @@
+{
+  "name": "resq-ai-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ResQ AI responder dashboard (static site) — Vercel serves the dashboard/ folder as the production output.",
+  "scripts": {
+    "build": "echo 'ResQ AI dashboard is a static site — no build step required'"
+  }
+}
