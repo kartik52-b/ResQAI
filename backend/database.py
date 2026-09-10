@@ -16,7 +16,11 @@ async def init_db():
     """Initialize database indexes."""
     await incidents_collection.create_index("incident_id", unique=True)
     await incidents_collection.create_index("access_token", unique=True)
-    await incidents_collection.create_index("user_id")
+    # Sparse: without it, every incident without a user_id would collide on
+    # the unique index (MongoDB treats missing fields as null).
+    await incidents_collection.create_index(
+        "user_id", unique=True, sparse=True
+    )
     await incidents_collection.create_index("status")
     await sensor_events_collection.create_index("user_id")
     await sensor_events_collection.create_index("incident_id")

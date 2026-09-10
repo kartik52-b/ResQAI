@@ -4,7 +4,10 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  # Dart 3.6+ required: the codebase uses Color.withValues(alpha:) (Flutter
+  # 3.27+) throughout. A lower floor here breaks `flutter pub get` on older
+  # toolchains with confusing resolution errors.
+  sdk: '>=3.6.0 <4.0.0'
 
 dependencies:
   flutter:

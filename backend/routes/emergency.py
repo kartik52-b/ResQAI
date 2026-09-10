@@ -9,6 +9,7 @@ from models.incident import (
     IncidentStatus,
 )
 from database import incidents_collection
+from pymongo.errors import DuplicateKeyError
 from datetime import datetime
 import uuid
 import secrets
@@ -21,10 +22,15 @@ def _generate_access_token() -> str:
     return secrets.token_urlsafe(16)  # 22-char URL-safe token
 
 
+def _generate_incident_id() -> str:
+    """Generate an 8-char incident ID, retrying on the (rare) collision."""
+    return str(uuid.uuid4())[:8].upper()
+
+
 @router.post("/emergency", response_model=dict)
 async def report_emergency(event: IncidentCreate):
     """Report a new emergency event from the mobile app."""
-    incident_id = str(uuid.uuid4())[:8].upper()
+    incident_id = _generate_incident_id()
     access_token = _generate_access_token()
     now = datetime.utcnow().isoformat()
 
@@ -54,7 +60,16 @@ async def report_emergency(event: IncidentCreate):
         "created_at": now,
     }
 
-    result = await incidents_collection.insert_one(doc)
+    try:
+        result = await incidents_collection.insert_one(doc)
+    except DuplicateKeyError:
+        # Rare: 8-char UUID prefix collision on incident_id/access_token.
+        # Regenerate both and insert once more.
+        incident_id = _generate_incident_id()
+        doc["incident_id"] = incident_id
+        access_token = _generate_access_token()
+        doc["access_token"] = access_token
+        result = await incidents_collection.insert_one(doc)
 
     # Send notification
     await _send_notification(doc)
@@ -65,6 +80,21 @@ async def report_emergency(event: IncidentCreate):
         "access_token": access_token,
         "message": f"Emergency reported. Incident {incident_id} created.",
         "severity": severity,
+    }
+
+
+@router.post("/location")
+async def update_location(data: LocationUpdate):
+    """Update the user's latest location (standalone endpoint).
+
+    Called by the mobile app to push periodic location updates.
+    """
+    now = datetime.utcnow().isoformat()
+    return {
+        "status": "ok",
+        "latitude": data.latitude,
+        "longitude": data.longitude,
+        "updated_at": now,
     }
 
 
@@ -110,7 +140,7 @@ async def resolve_incident(incident_id: str):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Incident not found")
 
-    return {"status": "ok", "incident_id": incident_id, "status": "RESOLVED"}
+    return {"status": "ok", "incident_id": incident_id, "incident_status": "RESOLVED"}
 
 
 @router.get("/incident/{incident_id}")
@@ -660,8 +690,27 @@ EMERGENCY_PAGE_HTML = """<!DOCTYPE html>
             }
         }
 
-        // Initial load
-        fetchIncidentData();
+        // Initial load: fetch the incident, then render the full page.
+        // BUGFIX: previously only fetchIncidentData() was called, but the page
+        // shell (map + info cards) is created by renderPage(), so the page
+        // stayed on the loading spinner forever. Now the first successful
+        // fetch renders the page, then polling keeps it updated.
+        (async function init() {
+            try {
+                const response = await fetch(API_BASE + '/incident/token/' + ACCESS_TOKEN);
+                if (!response.ok) throw new Error('Not found');
+                const data = await response.json();
+                renderPage(data);
+            } catch (err) {
+                console.error('Initial load failed:', err);
+                document.getElementById('app').innerHTML = `
+                    <div class="error-page">
+                        <h2>Unable to load emergency location</h2>
+                        <p>The emergency data could not be fetched.<br>Please refresh the page and try again.</p>
+                    </div>
+                `;
+            }
+        })();
     </script>
 </body>
 </html>"""

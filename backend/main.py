@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from config import settings
 from database import init_db, close_db
@@ -35,6 +37,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return 400 (not FastAPI's default 422) for invalid request bodies.
+
+    The API contract (and the tests) expect a 400 for malformed payloads.
+    """
+    errors = []
+    for err in exc.errors():
+        err = dict(err)
+        # ``ctx`` may hold non-JSON-serializable exception objects
+        err.pop("ctx", None)
+        err.pop("url", None)
+        errors.append(err)
+    return JSONResponse(status_code=400, content={"detail": errors})
+
 
 # Include routers
 app.include_router(emergency_router)

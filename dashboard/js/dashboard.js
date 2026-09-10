@@ -75,14 +75,17 @@ const Dashboard = {
 
     renderIncidents(incidents) {
         const list = document.getElementById('incident-list');
+
+        // Clear old markers BEFORE any early return — otherwise stale markers
+        // from a previous refresh pile up on the map forever (the map still
+        // shows removed incidents and duplicate markers accumulate every 10s).
+        markers.forEach(m => map.removeLayer(m));
+        markers = [];
+
         if (!incidents.length) {
             list.innerHTML = '<div class="empty-state">No active emergencies</div>';
             return;
         }
-
-        // Clear old markers
-        markers.forEach(m => map.removeLayer(m));
-        markers = [];
 
         list.innerHTML = incidents.map(inc => {
             const time = new Date(inc.time).toLocaleTimeString();

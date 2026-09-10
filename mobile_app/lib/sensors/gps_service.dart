@@ -76,6 +76,11 @@ class GpsService {
   static const int _maxRetries = 3;
   static const Duration _retryDelay = Duration(seconds: 3);
 
+  // --- Diagnostic logging (throttled) ---
+  // debugPrint is rate-limited but 5 lines per GPS fix still floods the log
+  // buffer on device and can jank the UI thread. Log one summary per second.
+  DateTime _lastDebugLog = DateTime.fromMillisecondsSinceEpoch(0);
+
   /// Most recent reading
   GpsData? get latest => _latest;
 
@@ -219,9 +224,7 @@ class GpsService {
       return; // Skip this reading entirely
     }
 
-    debugPrint('[GPS] ✅ Update #$_readingCount accepted — '
-        'accuracy ${accuracy.toStringAsFixed(1)}m '
-        '(${_readingCount <= _initialFixCount ? "initial fix" : "normal"})');
+    // (Reading accepted — rejected readings already returned above.)
 
     // === STEP 2: Calculate ground speed from consecutive positions ===
     double groundSpeedKmh = 0;
@@ -308,15 +311,18 @@ class GpsService {
     _previousPosition = position;
     _previousTimestamp = now;
 
-    // Comprehensive diagnostic logging
-    debugPrint('[GPS] 📍 lat=${position.latitude.toStringAsFixed(6)}, '
-        'lon=${position.longitude.toStringAsFixed(6)}');
-    debugPrint('[GPS] 🚗 raw=${androidSpeedKmh.toStringAsFixed(1)} km/h, '
-        'ground=${groundSpeedKmh.toStringAsFixed(1)} km/h, '
-        'filtered=${_emaSpeed.toStringAsFixed(1)} km/h');
-    debugPrint('[GPS] 📊 acc=${accuracy.toStringAsFixed(1)}m, '
-        'stationary=$_isStationary, '
-        'buffer=${_speedBuffer.length}');
+    // Diagnostic logging — one consolidated line per second max
+    if (now.difference(_lastDebugLog).inMilliseconds >= 1000) {
+      _lastDebugLog = now;
+      debugPrint('[GPS] 📍 lat=${position.latitude.toStringAsFixed(6)}, '
+          'lon=${position.longitude.toStringAsFixed(6)}, '
+          'raw=${androidSpeedKmh.toStringAsFixed(1)} km/h, '
+          'ground=${groundSpeedKmh.toStringAsFixed(1)} km/h, '
+          'filtered=${_emaSpeed.toStringAsFixed(1)} km/h, '
+          'acc=${accuracy.toStringAsFixed(1)}m, '
+          'stationary=$_isStationary, '
+          'buffer=${_speedBuffer.length}');
+    }
 
     _controller.add(data);
   }

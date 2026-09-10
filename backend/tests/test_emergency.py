@@ -10,17 +10,42 @@ from unittest.mock import AsyncMock, patch
 # Mock the database before importing app
 @pytest.fixture(autouse=True)
 def mock_db():
-    """Mock MongoDB for testing."""
+    """Mock MongoDB for testing.
+
+    ``find()`` must return a cursor-like chain (find → sort → limit) whose
+    result supports ``async for`` — an AsyncMock here returns a coroutine,
+    which breaks ``list_incidents``.
+    """
+
+    class FakeAsyncCursor:
+        """Minimal motor-style cursor supporting sort/limit and async iteration."""
+
+        def __init__(self, docs=None):
+            self._docs = docs or []
+
+        def sort(self, *args, **kwargs):
+            return self
+
+        def limit(self, *args, **kwargs):
+            return self
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            if not self._docs:
+                raise StopAsyncIteration
+            return self._docs.pop(0)
+
     with patch("database.incidents_collection") as mock_collection:
-        mock_collection.find.return_value = AsyncMock()
-        mock_collection.find.return_value.sort.return_value = AsyncMock()
-        mock_collection.find.return_value.sort.return_value.limit = AsyncMock(
-            return_value=[]
-        )
+        mock_collection.find.return_value = FakeAsyncCursor()
         mock_collection.insert_one = AsyncMock(
             return_value=AsyncMock(inserted_id="test_id")
         )
         mock_collection.find_one = AsyncMock(return_value=None)
+        mock_collection.update_one = AsyncMock(
+            return_value=AsyncMock(matched_count=0)
+        )
         mock_collection.create_index = AsyncMock()
         yield mock_collection
 

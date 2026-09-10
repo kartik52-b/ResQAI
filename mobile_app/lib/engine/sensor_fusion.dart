@@ -47,6 +47,10 @@ class SensorFusion {
 
   MovementClassifier get classifier => _classifier;
 
+  // Throttle classifier diagnostic logging — analyze() runs at ~10Hz and
+  // debugPrint every tick floods the log buffer on device.
+  DateTime _lastDiagnosticLog = DateTime.fromMillisecondsSinceEpoch(0);
+
   /// Analyze a fused sensor state and produce a combined analysis.
   FusedAnalysis analyze(FusedSensorState state) {
     // --- Raw sensor values ---
@@ -79,8 +83,10 @@ class SensorFusion {
     // Stationary requires BOTH low filtered speed AND no recent sensor activity
     final isStationary = secondsSinceMovement > 5 && filteredSpeed < 1.5;
 
-    // Log diagnostics periodically (every ~2 seconds at 10Hz = every 20 readings)
-    if (diagnostics != null) {
+    // Log diagnostics periodically (max once per 2 seconds at 10Hz)
+    if (diagnostics != null &&
+        DateTime.now().difference(_lastDiagnosticLog).inMilliseconds >= 2000) {
+      _lastDiagnosticLog = DateTime.now();
       debugPrint('MovementClassifier: ${diagnostics.toString()}');
     }
 
