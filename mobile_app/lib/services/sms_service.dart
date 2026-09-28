@@ -30,9 +30,10 @@ class SmsService {
   /// 2. A direct Google Maps fallback link
   /// 3. Real coordinates and timestamp
   String buildEmergencyMessage({
-    required double latitude,
-    required double longitude,
+    double? latitude,
+    double? longitude,
     required DateTime timestamp,
+    String locationSource = 'unknown',
     double? speedKmh,
     int? emergencyScore,
     String? emergencyPageUrl,
@@ -41,9 +42,6 @@ class SmsService {
         '${timestamp.minute.toString().padLeft(2, '0')}:'
         '${timestamp.second.toString().padLeft(2, '0')}';
     final dateStr = '${timestamp.day}/${timestamp.month}/${timestamp.year}';
-
-    // Google Maps fallback link
-    final mapsLink = 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
 
     final buffer = StringBuffer();
     buffer.writeln('RESQ AI EMERGENCY ALERT');
@@ -57,13 +55,18 @@ class SmsService {
       buffer.writeln('');
     }
 
-    buffer.writeln('Last known coordinates:');
-    buffer.writeln('Latitude: ${latitude.toStringAsFixed(6)}');
-    buffer.writeln('Longitude: ${longitude.toStringAsFixed(6)}');
-    buffer.writeln('');
-
-    // Google Maps fallback
-    buffer.writeln('Map: $mapsLink');
+    if (latitude != null && longitude != null) {
+      final mapsLink =
+          'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
+      buffer.writeln(locationSource == 'cached'
+          ? 'Last known location (cached):'
+          : 'Current location:');
+      buffer.writeln('Latitude: ${latitude.toStringAsFixed(6)}');
+      buffer.writeln('Longitude: ${longitude.toStringAsFixed(6)}');
+      buffer.writeln('Map: $mapsLink');
+    } else {
+      buffer.writeln('Current location could not be obtained.');
+    }
     buffer.writeln('');
     buffer.writeln('Time: $dateStr at $timeStr');
     buffer.writeln('Please check my live location and contact me immediately.');
@@ -82,9 +85,10 @@ class SmsService {
   /// Returns results for each contact.
   Future<List<SmsSendResult>> sendEmergencyToAll({
     required List<TrustedContact> contacts,
-    required double latitude,
-    required double longitude,
+    double? latitude,
+    double? longitude,
     required DateTime timestamp,
+    String locationSource = 'unknown',
     double? speedKmh,
     int? emergencyScore,
     String? emergencyPageUrl,
@@ -98,12 +102,14 @@ class SmsService {
       latitude: latitude,
       longitude: longitude,
       timestamp: timestamp,
+      locationSource: locationSource,
       speedKmh: speedKmh,
       emergencyScore: emergencyScore,
       emergencyPageUrl: emergencyPageUrl,
     );
 
-    debugPrint('SmsService: Sending emergency SMS to ${contacts.length} contacts');
+    debugPrint(
+        'SmsService: Sending emergency SMS to ${contacts.length} contacts');
 
     final results = <SmsSendResult>[];
 

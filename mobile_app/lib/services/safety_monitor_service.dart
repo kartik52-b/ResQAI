@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/thresholds.dart';
 import '../sensors/sensor_manager.dart';
 import '../engine/sensor_fusion.dart';
@@ -42,7 +43,7 @@ class SafetyMonitorService extends ChangeNotifier {
   final AccidentDetector _accidentDetector = AccidentDetector();
   final LifeReplay _lifeReplay = LifeReplay();
   late final EmergencyOrchestrator _orchestrator;
-  late final VoiceEmergencyDetector _voiceDetector;
+  VoiceEmergencyDetector? _voiceDetector;
 
   // Stream subscriptions
   StreamSubscription? _fusedSubscription;
@@ -62,7 +63,9 @@ class SafetyMonitorService extends ChangeNotifier {
   bool _demoMode = false;
   bool get demoMode => _demoMode;
   static const int _demoTimeoutSeconds = 15;
-  int get demoCountdownSeconds => _demoMode ? _demoTimeoutSeconds : EmergencySpeedThresholds.verificationTimeout;
+  int get demoCountdownSeconds => _demoMode
+      ? _demoTimeoutSeconds
+      : EmergencySpeedThresholds.verificationTimeout;
 
   // --- Observable state ---
   bool _isProtecting = false;
@@ -86,6 +89,8 @@ class SafetyMonitorService extends ChangeNotifier {
 
   // Voice
   bool _voiceDetectionOn = false;
+  bool _voiceDetectionEnabled = false;
+  bool _voicePreferenceLoaded = false;
   String _voiceMicStatus = 'INACTIVE';
   String _voiceDetectionStatus = 'OFF';
   String _voiceDetectedPhrase = '';
@@ -110,6 +115,7 @@ class SafetyMonitorService extends ChangeNotifier {
   String get movementDiagnostics => _movementDiagnostics;
 
   bool get voiceDetectionOn => _voiceDetectionOn;
+  bool get voiceDetectionEnabled => _voiceDetectionEnabled;
   String get voiceMicStatus => _voiceMicStatus;
   String get voiceDetectionStatus => _voiceDetectionStatus;
   String get voiceDetectedPhrase => _voiceDetectedPhrase;
@@ -127,7 +133,8 @@ class SafetyMonitorService extends ChangeNotifier {
   void toggleTestMode(bool enable) {
     _testMode = enable;
     if (enable) {
-      debugPrint('[TestMode] ENABLED — simulated data will feed real detection engines');
+      debugPrint(
+          '[TestMode] ENABLED — simulated data will feed real detection engines');
     } else {
       debugPrint('[TestMode] DISABLED');
       _accidentDetector.reset();
@@ -140,7 +147,8 @@ class SafetyMonitorService extends ChangeNotifier {
   /// Uses a shorter countdown (15s) so the demo doesn't take 2 minutes.
   void toggleDemoMode(bool enable) {
     _demoMode = enable;
-    debugPrint('[DemoMode] ${enable ? 'ENABLED' : 'DISABLED'} — timeout: ${_demoMode ? _demoTimeoutSeconds : 120}s');
+    debugPrint(
+        '[DemoMode] ${enable ? 'ENABLED' : 'DISABLED'} — timeout: ${_demoMode ? _demoTimeoutSeconds : 120}s');
     notifyListeners();
   }
 
@@ -161,8 +169,10 @@ class SafetyMonitorService extends ChangeNotifier {
     if (!_testMode || !_isProtecting) return;
 
     final now = DateTime.now();
-    final lat = latitude ?? (_currentLatitude != 0 ? _currentLatitude : 28.6139);
-    final lon = longitude ?? (_currentLongitude != 0 ? _currentLongitude : 77.2090);
+    final lat =
+        latitude ?? (_currentLatitude != 0 ? _currentLatitude : 28.6139);
+    final lon =
+        longitude ?? (_currentLongitude != 0 ? _currentLongitude : 77.2090);
 
     // Create a GpsData with the simulated speed (convert km/h to m/s for GpsData)
     final gpsData = GpsData(
@@ -194,7 +204,13 @@ class SafetyMonitorService extends ChangeNotifier {
     _accidentDetector.updateSensorData(accelNet, gyroMag);
 
     // Update orchestrator location
-    _orchestrator.updateLocation(lat, lon, speedKmh);
+    _orchestrator.updateLocation(
+      lat,
+      lon,
+      speedKmh,
+      timestamp: now,
+      accuracy: 5.0,
+    );
 
     // Update detection phase display
     _detectionPhase = _accidentDetector.phase.name.toUpperCase();
@@ -205,12 +221,17 @@ class SafetyMonitorService extends ChangeNotifier {
         accidentPhase == AccidentPhase.postEventInactivity) {
       _safetyStatus = 'ACCIDENT DETECTED';
     } else if (accidentPhase == AccidentPhase.normalMoving) {
-      _safetyStatus = speedKmh > 30 ? 'DRIVING' : speedKmh > 12 ? 'CYCLING' : 'MOVING';
+      _safetyStatus = speedKmh > 30
+          ? 'DRIVING'
+          : speedKmh > 12
+              ? 'CYCLING'
+              : 'MOVING';
     } else {
       _safetyStatus = speedKmh < 2.0 ? 'STATIONARY' : 'MOVING';
     }
 
-    debugPrint('[TestMode] Injected: speed=${speedKmh.toStringAsFixed(1)} km/h, '
+    debugPrint(
+        '[TestMode] Injected: speed=${speedKmh.toStringAsFixed(1)} km/h, '
         'accel=${accelNet.toStringAsFixed(1)} m/s², '
         'gyro=${gyroMag.toStringAsFixed(1)} deg/s, '
         'phase=${_accidentDetector.phase.name}');
@@ -249,40 +270,22 @@ class SafetyMonitorService extends ChangeNotifier {
 
     // Wire up native Android emergency popup callbacks
     _nativeBridge.onEmergencyUserOk = (eventId) {
-      debugPrint('[SafetyMonitorService] Native popup: user pressed OK — event: $eventId');
+      debugPrint(
+          '[SafetyMonitorService] Native popup: user pressed OK — event: $eventId');
       _orchestrator.userConfirmedOk();
     };
     _nativeBridge.onEmergencyUserHelp = (eventId) {
-      debugPrint('[SafetyMonitorService] Native popup: user pressed HELP — event: $eventId');
+      debugPrint(
+          '[SafetyMonitorService] Native popup: user pressed HELP — event: $eventId');
       _orchestrator.userConfirmedHelp();
     };
     _nativeBridge.onEmergencyTimeout = (eventId) {
-      debugPrint('[SafetyMonitorService] Native popup: timeout — event: $eventId');
+      debugPrint(
+          '[SafetyMonitorService] Native popup: timeout — event: $eventId');
       _orchestrator.userConfirmedHelp(); // Auto-confirm emergency
     };
 
-    _voiceDetector = VoiceEmergencyDetector(_nativeBridge);
-    _orchestrator.attachVoiceDetector(_voiceDetector);
-
-    _voiceDetector.onStateChanged = (state) {
-      _voiceMicStatus = (state == VoiceDetectionState.listening)
-          ? 'ACTIVE'
-          : (state == VoiceDetectionState.error) ? 'ERROR' : 'INACTIVE';
-      _voiceDetectionStatus = state.name.toUpperCase();
-      notifyListeners();
-    };
-
-    _voiceDetector.onPhraseDetected = (phrase) {
-      _voiceDetectedPhrase = phrase;
-      _voiceDetectionStatus = 'PHRASE DETECTED';
-      notifyListeners();
-    };
-
-    _voiceDetector.onError = (error) {
-      _voiceMicStatus = 'ERROR';
-      _voiceDetectionStatus = 'ERROR';
-      notifyListeners();
-    };
+    _loadVoiceDetectionPreference();
 
     _speedDropDetector.setCallback(_onSpeedDropDetected);
     _accidentDetector.setCallback(_onAccidentDetected);
@@ -319,7 +322,8 @@ class SafetyMonitorService extends ChangeNotifier {
       _gpsTimeoutTimer = Timer(const Duration(seconds: 60), () {
         if (_isProtecting && _gpsStatus == 'SEARCHING') {
           debugPrint('[SafetyMonitor] ⚠️ GPS timeout — no fix after 60s');
-          _movementDiagnostics = 'GPS: No fix after 60s. Go outdoors or check device GPS.';
+          _movementDiagnostics =
+              'GPS: No fix after 60s. Go outdoors or check device GPS.';
           notifyListeners();
         }
       });
@@ -337,7 +341,12 @@ class SafetyMonitorService extends ChangeNotifier {
     }
     notifyListeners();
 
-    _nativeBridge.startForegroundService();
+    final serviceStarted = await _nativeBridge.startForegroundService();
+    if (!serviceStarted) {
+      debugPrint('[SafetyMonitor] Background monitoring service not started - Android foreground-service eligibility check failed');
+      _safetyStatus = 'STARTUP BLOCKED';
+      _gpsStatus = 'WARNING';
+    }
     _nativeBridge.requestSmsPermission();
     _nativeBridge.requestCallPermission();
     _nativeBridge.requestNotificationPermission();
@@ -348,12 +357,10 @@ class SafetyMonitorService extends ChangeNotifier {
     _fusedSubscription = _sensorManager.fusedStream.listen(_onFusedData);
     _gpsSubscription = _sensorManager.gps.stream.listen(_onGpsData);
 
-    // === AUTO-START VOICE EMERGENCY DETECTION ===
-    // Voice monitoring starts automatically with Protection.
-    // The user does NOT need to manually enable it.
-    // If microphone permission is denied, voice detection gracefully
-    // falls back to OFF and sensor-only detection continues.
-    _autoStartVoiceDetection();
+    // Voice monitoring is opt-in. GPS and sensors continue independently.
+    if (_voiceDetectionEnabled) {
+      _startVoiceDetection();
+    }
 
     return gpsResult.success;
   }
@@ -380,8 +387,8 @@ class SafetyMonitorService extends ChangeNotifier {
     // dispose() would permanently kill the countdown stream + voice alert.
     _orchestrator.resetForReuse();
 
-    // Always stop voice detection when protection stops
-    _voiceDetector.setEnabled(false);
+    // Stop runtime voice detection, but preserve the user's opt-in setting.
+    _voiceDetector?.setEnabled(false);
     _voiceDetectionOn = false;
     _voiceMicStatus = 'INACTIVE';
     _voiceDetectionStatus = 'OFF';
@@ -408,39 +415,90 @@ class SafetyMonitorService extends ChangeNotifier {
 
   // === VOICE DETECTION ===
 
+  Future<void> _loadVoiceDetectionPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    _voiceDetectionEnabled =
+        prefs.getBool('voiceEmergencyDetectionEnabled') ?? false;
+    _voicePreferenceLoaded = true;
+    notifyListeners();
+  }
+
+  void _ensureVoiceDetector() {
+    if (_voiceDetector != null) return;
+
+    final detector = VoiceEmergencyDetector(_nativeBridge);
+    _voiceDetector = detector;
+    _orchestrator.attachVoiceDetector(detector);
+
+    detector.onStateChanged = (state) {
+      _voiceMicStatus = (state == VoiceDetectionState.listening)
+          ? 'ACTIVE'
+          : (state == VoiceDetectionState.error)
+              ? 'ERROR'
+              : 'INACTIVE';
+      _voiceDetectionStatus = state.name.toUpperCase();
+      notifyListeners();
+    };
+
+    detector.onPhraseDetected = (phrase) {
+      _voiceDetectedPhrase = phrase;
+      _voiceDetectionStatus = 'PHRASE DETECTED';
+      notifyListeners();
+    };
+
+    detector.onError = (error) {
+      _voiceMicStatus = 'ERROR';
+      _voiceDetectionStatus = 'ERROR';
+      notifyListeners();
+    };
+  }
+
   Future<void> toggleVoiceDetection(bool enable) async {
-    if (enable && !_isProtecting) return;
+    while (!_voicePreferenceLoaded) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('voiceEmergencyDetectionEnabled', enable);
+    _voiceDetectionEnabled = enable;
+
+    if (!enable) {
+      await _voiceDetector?.setEnabled(false);
+      _voiceDetectionOn = false;
+      _voiceMicStatus = 'INACTIVE';
+      _voiceDetectionStatus = 'OFF';
+      notifyListeners();
+      return;
+    }
 
     // setEnabled() handles permission request internally —
     // no need to request permission separately here.
-    await _voiceDetector.setEnabled(enable);
-    _voiceDetectionOn = enable && _voiceDetector.isEnabled;
+    await _startVoiceDetection();
+    notifyListeners();
+  }
+
+  Future<void> _startVoiceDetection() async {
+    if (!_voiceDetectionEnabled) return;
+    _ensureVoiceDetector();
+    final detector = _voiceDetector!;
+    try {
+      await detector.setEnabled(true);
+      _voiceDetectionOn = detector.isEnabled;
+      if (!_voiceDetectionOn) {
+        _voiceMicStatus = 'ERROR';
+        _voiceDetectionStatus = 'OFF';
+      }
+    } catch (e) {
+      debugPrint('[SafetyMonitor] Voice detection startup failed: $e');
+      _voiceDetectionOn = false;
+      _voiceMicStatus = 'ERROR';
+      _voiceDetectionStatus = 'OFF';
+    }
     notifyListeners();
   }
 
   Future<void> openMicSettings() async {
-    await _voiceDetector.openSettings();
-  }
-
-  /// Automatically start voice emergency detection.
-  /// Called from startProtection() — the user does NOT need to manually enable it.
-  /// If microphone permission is denied, voice detection gracefully degrades
-  /// to OFF while sensor-only detection continues normally.
-  Future<void> _autoStartVoiceDetection() async {
-    debugPrint('[SafetyMonitor] Auto-starting voice emergency detection...');
-    try {
-      await _voiceDetector.setEnabled(true);
-      _voiceDetectionOn = _voiceDetector.isEnabled;
-      if (_voiceDetectionOn) {
-        debugPrint('[SafetyMonitor] ✅ Voice detection AUTO-STARTED — listening for emergency phrases');
-      } else {
-        debugPrint('[SafetyMonitor] ⚠️ Voice detection not started — microphone permission may be denied');
-      }
-    } catch (e) {
-      debugPrint('[SafetyMonitor] ⚠️ Voice auto-start failed: $e — sensor detection continues');
-      _voiceDetectionOn = false;
-    }
-    notifyListeners();
+    await _voiceDetector?.openSettings();
   }
 
   /// Restart voice detection after an emergency cycle completes.
@@ -449,12 +507,12 @@ class SafetyMonitorService extends ChangeNotifier {
     if (!_isProtecting) return; // Don't restart if protection is off
     debugPrint('[SafetyMonitor] Restarting voice detection after emergency...');
     try {
-      if (!_voiceDetector.isEnabled) {
-        await _voiceDetector.setEnabled(true);
-        _voiceDetectionOn = _voiceDetector.isEnabled;
+      if (_voiceDetector == null || !_voiceDetector!.isEnabled) {
+        await _startVoiceDetection();
+        _voiceDetectionOn = _voiceDetector?.isEnabled ?? false;
       } else {
         // Detector is enabled but was paused during emergency — resume it
-        _voiceDetector.cancelPendingEmergency();
+        _voiceDetector?.cancelPendingEmergency();
       }
     } catch (e) {
       debugPrint('[SafetyMonitor] Voice restart after emergency failed: $e');
@@ -516,7 +574,8 @@ class SafetyMonitorService extends ChangeNotifier {
     _gpsAccuracy = gpsData.accuracy;
     _gpsIsStationary = gpsData.isStationary;
 
-    debugPrint('[SafetyMonitor] GPS: speed=${gpsData.speedKmh.toStringAsFixed(1)} km/h, '
+    debugPrint(
+        '[SafetyMonitor] GPS: speed=${gpsData.speedKmh.toStringAsFixed(1)} km/h, '
         'raw=${gpsData.rawSpeedKmh.toStringAsFixed(1)} km/h, '
         'acc=${gpsData.accuracy.toStringAsFixed(1)}m, '
         'stationary=${gpsData.isStationary}');
@@ -526,6 +585,8 @@ class SafetyMonitorService extends ChangeNotifier {
       gpsData.latitude,
       gpsData.longitude,
       gpsData.speedKmh,
+      timestamp: gpsData.timestamp,
+      accuracy: gpsData.accuracy,
     );
 
     _speedDropDetector.onGpsUpdate(gpsData);
@@ -553,7 +614,8 @@ class SafetyMonitorService extends ChangeNotifier {
 
   void _onSpeedDropDetected(EmergencyEvent event) {
     _emergencyStatus = 'VERIFYING';
-    _orchestrator.setCountdownTimeout(_demoMode ? 15 : EmergencySpeedThresholds.verificationTimeout);
+    _orchestrator.setCountdownTimeout(
+        _demoMode ? 15 : EmergencySpeedThresholds.verificationTimeout);
     _orchestrator.onPossibleEmergency(event);
     notifyListeners();
   }
@@ -561,15 +623,18 @@ class SafetyMonitorService extends ChangeNotifier {
   void _onAccidentDetected(EmergencyEvent event) {
     _emergencyStatus = 'VERIFYING';
     _emergencyScore = event.emergencyScore;
-    _orchestrator.setCountdownTimeout(_demoMode ? 15 : EmergencySpeedThresholds.verificationTimeout);
+    _orchestrator.setCountdownTimeout(
+        _demoMode ? 15 : EmergencySpeedThresholds.verificationTimeout);
     _orchestrator.onPossibleEmergency(event);
     notifyListeners();
   }
 
   void _showEmergencyNotification() {
     // Launch the native Android emergency popup over the lock screen
-    final eventId = _orchestrator.currentEvent?.id ?? 'emergency-${DateTime.now().millisecondsSinceEpoch}';
-    debugPrint('[SafetyMonitorService] Launching native emergency popup — event: $eventId');
+    final eventId = _orchestrator.currentEvent?.id ??
+        'emergency-${DateTime.now().millisecondsSinceEpoch}';
+    debugPrint(
+        '[SafetyMonitorService] Launching native emergency popup — event: $eventId');
 
     _nativeBridge.launchEmergencyPopup(
       eventId: eventId,
@@ -618,7 +683,7 @@ class SafetyMonitorService extends ChangeNotifier {
     _countdownSubscription?.cancel();
     _countdownSubscription = null;
     stopProtection();
-    _voiceDetector.dispose();
+    _voiceDetector?.dispose();
     _orchestrator.dispose();
     super.dispose();
   }

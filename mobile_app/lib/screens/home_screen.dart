@@ -47,16 +47,19 @@ class HomeScreen extends StatelessWidget {
                     // Demo Mode banner
                     if (monitor.demoMode)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.teal.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.teal.withValues(alpha: 0.4)),
+                          border: Border.all(
+                              color: Colors.teal.withValues(alpha: 0.4)),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.present_to_all, color: Colors.teal, size: 16),
+                            Icon(Icons.present_to_all,
+                                color: Colors.teal, size: 16),
                             SizedBox(width: 8),
                             Text(
                               'DEMO MODE — 15s countdown',
@@ -146,7 +149,8 @@ class HomeScreen extends StatelessWidget {
             ),
 
             // Emergency verification overlay
-            if (monitor.orchestrator.state == OrchestratorState.possibleEmergency ||
+            if (monitor.orchestrator.state ==
+                    OrchestratorState.possibleEmergency ||
                 monitor.orchestrator.state == OrchestratorState.voiceVerifying)
               EmergencyScreen(
                 remainingSeconds: monitor.orchestrator.remainingSeconds,
@@ -160,7 +164,8 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProtectionToggle(BuildContext context, SafetyMonitorService monitor) {
+  Widget _buildProtectionToggle(
+      BuildContext context, SafetyMonitorService monitor) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -208,7 +213,9 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   monitor.isProtecting
-                      ? 'Sensors + GPS + Voice monitoring active'
+                      ? (monitor.voiceDetectionEnabled
+                          ? 'Sensors + GPS + Voice monitoring active'
+                          : 'Sensors + GPS monitoring active')
                       : 'Tap to enable safety monitoring',
                   style: TextStyle(
                     color: Colors.grey.shade500,
@@ -240,15 +247,15 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
           Row(
             children: [
               Icon(Icons.location_on,
-                  size: 18,
-                  color: _getGpsStatusColor(monitor.gpsStatus)),
+                  size: 18, color: _getGpsStatusColor(monitor.gpsStatus)),
               const SizedBox(width: 8),
               Text('GPS: ',
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
@@ -262,7 +269,8 @@ class HomeScreen extends StatelessWidget {
               if (monitor.gpsAccuracy > 0 && monitor.gpsStatus == 'ACTIVE')
                 Text('${monitor.gpsAccuracy.toStringAsFixed(0)}m',
                     style: TextStyle(
-                      color: monitor.gpsAccuracy > 30 ? Colors.red : Colors.green,
+                      color:
+                          monitor.gpsAccuracy > 30 ? Colors.red : Colors.green,
                       fontSize: 12,
                       fontFamily: 'monospace',
                     )),
@@ -306,7 +314,8 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
           if (monitor.gpsStatus == 'ACTIVE' &&
-              (monitor.currentLatitude != 0 || monitor.currentLongitude != 0)) ...[
+              (monitor.currentLatitude != 0 ||
+                  monitor.currentLongitude != 0)) ...[
             const SizedBox(height: 8),
             Row(
               children: [
@@ -349,11 +358,14 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildVoiceCard(BuildContext context, SafetyMonitorService monitor) {
-    // Voice detection is automatic — status indicator only, no manual toggle.
-    final voiceActive = monitor.voiceDetectionOn && monitor.isProtecting;
+    final voiceActive = monitor.voiceDetectionOn;
     final voiceStatus = monitor.voiceMicStatus;
     final voiceColor = voiceActive
-        ? (voiceStatus == 'ACTIVE' ? Colors.green : voiceStatus == 'ERROR' ? Colors.red : Colors.grey)
+        ? (voiceStatus == 'ACTIVE'
+            ? Colors.green
+            : voiceStatus == 'ERROR'
+                ? Colors.red
+                : Colors.grey)
         : Colors.grey;
 
     return Container(
@@ -361,7 +373,8 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Row(
         children: [
@@ -376,11 +389,7 @@ class HomeScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                 ),
                 Text(
-                  voiceActive
-                      ? '● AUTO-ACTIVE — Mic: $voiceStatus'
-                      : monitor.isProtecting
-                          ? '● WAITING — Requesting permission...'
-                          : '● OFF — Enable Protection to activate',
+                  voiceActive ? '● ON — Mic: $voiceStatus' : '● OFF',
                   style: TextStyle(
                     color: voiceColor,
                     fontSize: 11,
@@ -389,6 +398,11 @@ class HomeScreen extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          Switch(
+            value: monitor.voiceDetectionEnabled,
+            onChanged: (value) => monitor.toggleVoiceDetection(value),
+            activeThumbColor: Colors.green,
           ),
         ],
       ),
@@ -403,7 +417,8 @@ class HomeScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1), width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,7 +472,8 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,7 +504,8 @@ class HomeScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         e.description,
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 12),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -506,7 +523,8 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -570,7 +588,8 @@ class HomeScreen extends StatelessWidget {
   Widget _buildMiniLabel(String label, String value, Color valueColor) {
     return Column(
       children: [
-        Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 10)),
+        Text(label,
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 10)),
         Text(value,
             style: TextStyle(
                 color: valueColor, fontSize: 12, fontWeight: FontWeight.w600)),
@@ -584,12 +603,14 @@ class HomeScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
+          Text(label,
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 14)),
           Flexible(
             child: Text(
               value,

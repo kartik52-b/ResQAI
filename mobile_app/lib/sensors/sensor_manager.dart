@@ -98,15 +98,6 @@ class SensorManager extends ChangeNotifier {
     _fusedController.add(state);
   }
 
-  /// Get peak values and reset
-  Map<String, double> getAndResetPeaks() {
-    return {
-      'acceleration_peak': _accelerometer.getAndResetPeak(),
-      'rotation_peak': _gyroscope.getAndResetPeak(),
-      'speed_change_peak': _gps.getAndResetMaxSpeedChange(),
-    };
-  }
-
   @override
   void dispose() {
     stopAll();

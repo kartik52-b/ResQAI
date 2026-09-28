@@ -29,10 +29,8 @@ class MonitoringScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // Large Speed Display
-                if (monitor.gpsStatus == 'ACTIVE')
-                  _buildSpeedDisplay(monitor),
-                if (monitor.gpsStatus == 'ACTIVE')
-                  const SizedBox(height: 20),
+                if (monitor.gpsStatus == 'ACTIVE') _buildSpeedDisplay(monitor),
+                if (monitor.gpsStatus == 'ACTIVE') const SizedBox(height: 20),
 
                 // GPS Section
                 _buildSectionTitle('GPS'),
@@ -81,7 +79,8 @@ class MonitoringScreen extends StatelessWidget {
                         Expanded(
                           child: Text(
                             '"${monitor.voiceDetectedPhrase}"',
-                            style: const TextStyle(color: Colors.red, fontSize: 14),
+                            style: const TextStyle(
+                                color: Colors.red, fontSize: 14),
                           ),
                         ),
                       ],
@@ -105,7 +104,8 @@ class MonitoringScreen extends StatelessWidget {
                       children: monitor.accidentDetector.detectionLog
                           .takeLast(10)
                           .map((log) => Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 2),
                                 child: Text(
                                   log.toString(),
                                   style: TextStyle(
@@ -172,7 +172,8 @@ class MonitoringScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -300,7 +301,8 @@ class MonitoringScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -335,7 +337,8 @@ class MonitoringScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -390,13 +393,18 @@ class MonitoringScreen extends StatelessWidget {
 
   Color _getGpsColor(String status) {
     switch (status) {
-      case 'ACTIVE': return Colors.green;
-      case 'SEARCHING': return Colors.amber;
-      case 'STARTING': return Colors.grey;
+      case 'ACTIVE':
+        return Colors.green;
+      case 'SEARCHING':
+        return Colors.amber;
+      case 'STARTING':
+        return Colors.grey;
       case 'PERMISSION DENIED':
       case 'SERVICE OFF':
-      case 'ERROR': return Colors.red;
-      default: return Colors.grey;
+      case 'ERROR':
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -407,7 +415,8 @@ class MonitoringScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -432,19 +441,20 @@ class MonitoringScreen extends StatelessWidget {
   }
 
   Widget _buildVoiceCard(SafetyMonitorService monitor) {
-    final voiceActive = monitor.voiceDetectionOn && monitor.isProtecting;
+    final voiceActive = monitor.voiceDetectionOn;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
           _buildRow(
             'Voice Detection',
-            voiceActive ? 'AUTO-ACTIVE' : (monitor.isProtecting ? 'REQUESTING...' : 'OFF'),
+            voiceActive ? 'ON' : 'OFF',
             voiceActive ? Colors.green : Colors.grey,
           ),
           _buildRow(
@@ -463,7 +473,7 @@ class MonitoringScreen extends StatelessWidget {
           ),
           _buildRow(
             'Mode',
-            'Automatic (starts with Protection)',
+            monitor.voiceDetectionEnabled ? 'User enabled' : 'User disabled',
             Colors.grey.shade600,
           ),
         ],
@@ -477,7 +487,8 @@ class MonitoringScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
+        border:
+            Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
       ),
       child: Column(
         children: [
@@ -509,7 +520,8 @@ class MonitoringScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+          Text(label,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
           Flexible(
             child: Text(
               value,
@@ -540,17 +552,26 @@ class MonitoringScreen extends StatelessWidget {
 
   Color _getPhaseColor(String phase) {
     switch (phase) {
-      case 'IDLE': return Colors.grey;
-      case 'NORMALMOVING': return Colors.green;
-      case 'MOVING': return Colors.green;
+      case 'IDLE':
+        return Colors.grey;
+      case 'NORMALMOVING':
+        return Colors.green;
+      case 'MOVING':
+        return Colors.green;
       case 'DECELERATING':
-      case 'SUDDENDECELERATION': return Colors.orange;
-      case 'POSSIBLEIMPACT': return Colors.red.shade300;
-      case 'POSTEVENTINACTIVITY': return Colors.red.shade200;
-      case 'STATIONARY': return Colors.yellow;
+      case 'SUDDENDECELERATION':
+        return Colors.orange;
+      case 'POSSIBLEIMPACT':
+        return Colors.red.shade300;
+      case 'POSTEVENTINACTIVITY':
+        return Colors.red.shade200;
+      case 'STATIONARY':
+        return Colors.yellow;
       case 'DETECTED':
-      case 'VERIFYING': return Colors.red;
-      default: return Colors.white;
+      case 'VERIFYING':
+        return Colors.red;
+      default:
+        return Colors.white;
     }
   }
 
@@ -589,7 +610,8 @@ class MonitoringScreen extends StatelessWidget {
                 child: Text(
                   'Demo Mode (Judge Presentation)',
                   style: TextStyle(
-                    color: monitor.demoMode ? Colors.teal : Colors.grey.shade400,
+                    color:
+                        monitor.demoMode ? Colors.teal : Colors.grey.shade400,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -682,7 +704,8 @@ class _TestModeCardState extends State<_TestModeCard> {
                 child: Text(
                   'Test Mode',
                   style: TextStyle(
-                    color: monitor.testMode ? Colors.orange : Colors.grey.shade400,
+                    color:
+                        monitor.testMode ? Colors.orange : Colors.grey.shade400,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -811,7 +834,9 @@ class _TestModeCardState extends State<_TestModeCard> {
                 style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
             Text('${value.toStringAsFixed(1)} $unit',
                 style: const TextStyle(
-                    color: Colors.orange, fontSize: 12, fontFamily: 'monospace')),
+                    color: Colors.orange,
+                    fontSize: 12,
+                    fontFamily: 'monospace')),
           ],
         ),
         SliderTheme(

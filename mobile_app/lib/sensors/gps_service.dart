@@ -414,11 +414,6 @@ class GpsService {
     _retryCount = 0;
   }
 
-  /// Get and reset max speed change (for peak tracking).
-  double getAndResetMaxSpeedChange() {
-    return 0;
-  }
-
   /// Stop listening
   void stop() {
     debugPrint('[GPS] Stopping GPS service');

@@ -73,6 +73,7 @@ class EmergencyOrchestrator {
   void setCountdownTimeout(int seconds) {
     _countdownTimeout = seconds.clamp(10, 300);
   }
+
   final _countdownController = StreamController<int>.broadcast();
   int _voiceRetryCount = 0;
   static const int _maxVoiceRetries = 4;
@@ -128,23 +129,36 @@ class EmergencyOrchestrator {
 
   /// Update current GPS location — called by SafetyMonitorService on each GPS fix.
   /// This ensures voice-triggered emergencies always have the latest real location.
-  void updateLocation(double latitude, double longitude, double speedKmh) {
-    _currentLocation = {'latitude': latitude, 'longitude': longitude};
+  void updateLocation(
+    double latitude,
+    double longitude,
+    double speedKmh, {
+    DateTime? timestamp,
+    double? accuracy,
+  }) {
+    if (!_isValidCoordinate(latitude, longitude)) return;
+    _currentLocation = {
+      'latitude': latitude,
+      'longitude': longitude,
+      'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
+      'accuracy': accuracy,
+    };
     _currentSpeedKmh = speedKmh;
   }
 
   /// Request a fresh GPS position for emergency confirmation.
-  /// Tries to get a position with accuracy <= 30m.
+  /// Coordinates are validated (non-zero, within lat/lng range) before use.
   /// Falls back to the latest cached location if a fresh fix is unavailable.
   ///
   /// Returns a map with latitude, longitude, accuracy, and source.
   Future<Map<String, dynamic>> _requestEmergencyLocation() async {
-    debugPrint('[EmergencyOrchestrator] 📍 Requesting fresh GPS fix for emergency...');
+    debugPrint(
+        '[EmergencyOrchestrator] 📍 Requesting fresh GPS fix for emergency...');
 
     // Step 1: Try to get a fresh position with high accuracy
     if (_gpsService != null) {
       try {
-        final freshPosition = await _gpsService!.getCurrentPosition();
+        final freshPosition = await _gpsService.getCurrentPosition();
         if (freshPosition != null) {
           final accuracy = freshPosition.accuracy;
           final lat = freshPosition.latitude;
@@ -162,14 +176,16 @@ class EmergencyOrchestrator {
               'longitude': lng,
               'accuracy': accuracy,
               'source': 'fresh_fix',
-              'timestamp': DateTime.now().toIso8601String(),
+              'timestamp': freshPosition.timestamp.toIso8601String(),
             };
           } else {
-            debugPrint('[EmergencyOrchestrator] ⚠️ Fresh fix has invalid coordinates: '
+            debugPrint(
+                '[EmergencyOrchestrator] ⚠️ Fresh fix has invalid coordinates: '
                 '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}');
           }
         } else {
-          debugPrint('[EmergencyOrchestrator] ⚠️ getCurrentPosition returned null');
+          debugPrint(
+              '[EmergencyOrchestrator] ⚠️ getCurrentPosition returned null');
         }
       } catch (e) {
         debugPrint('[EmergencyOrchestrator] ⚠️ Fresh GPS request failed: $e');
@@ -182,6 +198,14 @@ class EmergencyOrchestrator {
       final lng = (_currentLocation!['longitude'] as num?)?.toDouble() ?? 0.0;
 
       if (_isValidCoordinate(lat, lng)) {
+        final cachedTimestamp = DateTime.tryParse(
+          _currentLocation!['timestamp'] as String? ?? '',
+        );
+        if (cachedTimestamp == null) {
+          debugPrint(
+              '[EmergencyOrchestrator] ⚠️ Cached GPS location has no timestamp');
+          return _unavailableLocation();
+        }
         debugPrint('[EmergencyOrchestrator] ⚠️ Using cached GPS location: '
             '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}, '
             'source=cached');
@@ -189,23 +213,25 @@ class EmergencyOrchestrator {
         return {
           'latitude': lat,
           'longitude': lng,
-          'accuracy': null,
+          'accuracy': (_currentLocation!['accuracy'] as num?)?.toDouble(),
           'source': 'cached',
-          'timestamp': DateTime.now().toIso8601String(),
+          'timestamp': cachedTimestamp.toIso8601String(),
         };
       }
     }
 
     // Step 3: No valid location available — return zeros (caller must handle)
     debugPrint('[EmergencyOrchestrator] ❌ NO VALID GPS LOCATION AVAILABLE');
-    return {
-      'latitude': 0.0,
-      'longitude': 0.0,
-      'accuracy': null,
-      'source': 'none',
-      'timestamp': DateTime.now().toIso8601String(),
-    };
+    return _unavailableLocation();
   }
+
+  Map<String, dynamic> _unavailableLocation() => {
+        'latitude': null,
+        'longitude': null,
+        'accuracy': null,
+        'source': 'none',
+        'timestamp': null,
+      };
 
   /// Validate that latitude and longitude are real, non-zero coordinates.
   bool _isValidCoordinate(double latitude, double longitude) {
@@ -226,7 +252,8 @@ class EmergencyOrchestrator {
   /// Called when SpeedDropDetector detects a possible emergency.
   void onPossibleEmergency(EmergencyEvent event) {
     if (_isProcessing) return;
-    debugPrint('EmergencyOrchestrator: Possible emergency detected (GPS speed drop)');
+    debugPrint(
+        'EmergencyOrchestrator: Possible emergency detected (GPS speed drop)');
     _startEmergencyFlow(event, voiceTriggered: false);
   }
 
@@ -253,7 +280,8 @@ class EmergencyOrchestrator {
   // CORE EMERGENCY FLOW
   // ======================================================================
 
-  void _startEmergencyFlow(EmergencyEvent event, {required bool voiceTriggered}) {
+  void _startEmergencyFlow(EmergencyEvent event,
+      {required bool voiceTriggered}) {
     _currentEvent = event;
     _voiceTriggered = voiceTriggered;
     _isProcessing = true;
@@ -308,7 +336,8 @@ class EmergencyOrchestrator {
           return;
         }
 
-        debugPrint('EmergencyOrchestrator: Countdown expired — auto-confirming');
+        debugPrint(
+            'EmergencyOrchestrator: Countdown expired — auto-confirming');
         _setState(OrchestratorState.noResponseTimeout);
         _confirmAndAct();
       }
@@ -351,7 +380,8 @@ class EmergencyOrchestrator {
     if (_voiceRetryCount < _maxVoiceRetries && _remainingSeconds > 10) {
       debugPrint('EmergencyOrchestrator: No response, retrying voice alert '
           '($_voiceRetryCount/$_maxVoiceRetries, ${_remainingSeconds}s remaining)');
-      _statusMessage('No response — asking again (${_remainingSeconds}s remaining)');
+      _statusMessage(
+          'No response — asking again (${_remainingSeconds}s remaining)');
 
       // Pause briefly, then retry
       Future.delayed(const Duration(seconds: 5), () {
@@ -360,7 +390,8 @@ class EmergencyOrchestrator {
         }
       });
     } else {
-      debugPrint('EmergencyOrchestrator: No response after $_voiceRetryCount attempts '
+      debugPrint(
+          'EmergencyOrchestrator: No response after $_voiceRetryCount attempts '
           '(${_remainingSeconds}s remaining) — will auto-confirm at timeout');
       _statusMessage('No response — emergency will auto-confirm at timeout');
       // Don't confirm here — let the countdown timer handle it
@@ -388,7 +419,9 @@ class EmergencyOrchestrator {
   }
 
   void _cancelEmergency() {
-    if (!_isProcessing) return; // Already cancelled/confirmed — ignore duplicates
+    if (!_isProcessing) {
+      return; // Already cancelled/confirmed — ignore duplicates
+    }
 
     _stopCountdown();
     _voiceAlert.stop();
@@ -408,7 +441,8 @@ class EmergencyOrchestrator {
     if (_currentIncidentId != null) {
       _apiService.resolveIncident(_currentIncidentId!).then((success) {
         if (success) {
-          debugPrint('[EmergencyOrchestrator] Incident $_currentIncidentId marked RESOLVED');
+          debugPrint(
+              '[EmergencyOrchestrator] Incident $_currentIncidentId marked RESOLVED');
         }
       });
     }
@@ -448,25 +482,62 @@ class EmergencyOrchestrator {
     // Actively request a fresh GPS fix and validate it.
     _statusMessage('Acquiring emergency GPS location...');
     final locationData = await _requestEmergencyLocation();
-    final double latitude = (locationData['latitude'] as num?)?.toDouble() ?? 0.0;
-    final double longitude = (locationData['longitude'] as num?)?.toDouble() ?? 0.0;
-    final String locationSource = locationData['source'] as String? ?? 'unknown';
+    final double? latitude = (locationData['latitude'] as num?)?.toDouble();
+    final double? longitude = (locationData['longitude'] as num?)?.toDouble();
+    final String locationSource =
+        locationData['source'] as String? ?? 'unknown';
     final double? accuracy = locationData['accuracy'] as double?;
+    final DateTime? locationTimestamp = DateTime.tryParse(
+      locationData['timestamp'] as String? ?? '',
+    );
+    final hasValidLocation = latitude != null &&
+        longitude != null &&
+        _isValidCoordinate(latitude, longitude) &&
+        locationTimestamp != null;
+
+    if (_currentEvent != null) {
+      _currentEvent = EmergencyEvent(
+        id: _currentEvent!.id,
+        timestamp: _currentEvent!.timestamp,
+        emergencyScore: _currentEvent!.emergencyScore,
+        activityType: _currentEvent!.activityType,
+        status: _currentEvent!.status,
+        impactMagnitude: _currentEvent!.impactMagnitude,
+        speedKmh: _currentEvent!.speedKmh,
+        rotationSpeed: _currentEvent!.rotationSpeed,
+        location: hasValidLocation
+            ? {
+                'latitude': latitude,
+                'longitude': longitude,
+                'accuracy': accuracy,
+                'source': locationSource,
+                'timestamp': locationTimestamp.toIso8601String(),
+              }
+            : null,
+      );
+    }
 
     // Log the exact location being used
     debugPrint('========================================');
     debugPrint('🚨 EMERGENCY LOCATION CONFIRMED');
-    debugPrint('  Latitude:  ${latitude.toStringAsFixed(6)}');
-    debugPrint('  Longitude: ${longitude.toStringAsFixed(6)}');
-    debugPrint('  Accuracy:  ${accuracy != null ? "${accuracy.toStringAsFixed(1)}m" : "unknown"}');
+    debugPrint('  Latitude:  ${latitude?.toStringAsFixed(6) ?? "unavailable"}');
+    debugPrint(
+        '  Longitude: ${longitude?.toStringAsFixed(6) ?? "unavailable"}');
+    debugPrint(
+        '  Accuracy:  ${accuracy != null ? "${accuracy.toStringAsFixed(1)}m" : "unknown"}');
     debugPrint('  Source:    $locationSource');
-    debugPrint('  Time:      ${timestamp.toIso8601String()}');
-    debugPrint('  Maps:      https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
+    debugPrint(
+        '  Time:      ${locationTimestamp?.toIso8601String() ?? "unavailable"}');
+    if (hasValidLocation) {
+      debugPrint(
+          '  Maps:      https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
+    }
     debugPrint('========================================');
 
     // Validate location before sending SMS
-    if (latitude == 0.0 && longitude == 0.0) {
-      _statusMessage('⚠️ No valid GPS location — SMS will contain fallback message');
+    if (!hasValidLocation) {
+      _statusMessage(
+          '⚠️ No valid GPS location — sending SMS without coordinates');
     }
 
     // === Step 1: SMS to ALL trusted contacts ===
@@ -478,9 +549,10 @@ class EmergencyOrchestrator {
     if (contacts.isNotEmpty) {
       final smsResults = await _smsService.sendEmergencyToAll(
         contacts: contacts,
-        latitude: latitude,
-        longitude: longitude,
-        timestamp: timestamp,
+        latitude: hasValidLocation ? latitude : null,
+        longitude: hasValidLocation ? longitude : null,
+        timestamp: locationTimestamp ?? timestamp,
+        locationSource: locationSource,
         speedKmh: speedKmh,
         emergencyScore: score,
       );
@@ -490,7 +562,8 @@ class EmergencyOrchestrator {
             '${result.success ? "SUCCESS" : "FAILED"} '
             '${result.error != null ? "(${result.error})" : ""}');
       }
-      _statusMessage('SMS sent to $initialSmsSuccessCount/${contacts.length} contacts');
+      _statusMessage(
+          'SMS sent to $initialSmsSuccessCount/${contacts.length} contacts');
     } else {
       _statusMessage('No trusted contacts configured — SMS not sent');
     }
@@ -517,52 +590,61 @@ class EmergencyOrchestrator {
     // === Step 3: Report to backend + get emergency page URL ===
     _statusMessage('Reporting to backend...');
     String? emergencyPageUrl;
-    try {
-      final timeline = _lifeReplay.snapshot ?? _lifeReplay.events;
-      final String severity;
-      if (score >= 85) {
-        severity = 'CRITICAL';
-      } else if (score >= 70) {
-        severity = 'HIGH';
-      } else if (score >= 50) {
-        severity = 'MEDIUM';
-      } else {
-        severity = 'LOW';
-      }
-
-      // Determine emergency type
-      final String emergencyType = _voiceTriggered ? 'voice' : 'speed_drop';
-
-      final result = await _apiService.reportEmergency(
-        latitude: latitude,
-        longitude: longitude,
-        accuracy: accuracy,
-        speedKmh: speedKmh,
-        impactMagnitude: _currentEvent?.impactMagnitude ?? 0.0,
-        emergencyScore: score,
-        severity: severity,
-        emergencyType: emergencyType,
-        timeline: timeline,
-      );
-
-      if (result != null) {
-        _currentIncidentId = result['incident_id'] as String?;
-        _currentAccessToken = result['access_token'] as String?;
-
-        if (_currentAccessToken != null) {
-          emergencyPageUrl = _apiService.getEmergencyPageUrl(_currentAccessToken!);
-          debugPrint('[EmergencyOrchestrator] 🌐 Emergency page: $emergencyPageUrl');
+    if (!hasValidLocation) {
+      _statusMessage(
+          'Emergency confirmed — backend location report skipped: GPS unavailable');
+    } else {
+      try {
+        final timeline = _lifeReplay.snapshot ?? _lifeReplay.events;
+        final String severity;
+        if (score >= 85) {
+          severity = 'CRITICAL';
+        } else if (score >= 70) {
+          severity = 'HIGH';
+        } else if (score >= 50) {
+          severity = 'MEDIUM';
+        } else {
+          severity = 'LOW';
         }
 
-        _statusMessage('Emergency confirmed — Incident $_currentIncidentId created');
+        // Determine emergency type
+        final String emergencyType = _voiceTriggered ? 'voice' : 'speed_drop';
 
-        // Start live location updates
-        _startLiveLocationUpdates();
-      } else {
-        _statusMessage('Emergency confirmed — Server unreachable (will retry)');
+        final result = await _apiService.reportEmergency(
+          latitude: latitude,
+          longitude: longitude,
+          accuracy: accuracy,
+          speedKmh: speedKmh,
+          impactMagnitude: _currentEvent?.impactMagnitude ?? 0.0,
+          emergencyScore: score,
+          severity: severity,
+          emergencyType: emergencyType,
+          timeline: timeline,
+        );
+
+        if (result != null) {
+          _currentIncidentId = result['incident_id'] as String?;
+          _currentAccessToken = result['access_token'] as String?;
+
+          if (_currentAccessToken != null) {
+            emergencyPageUrl =
+                _apiService.getEmergencyPageUrl(_currentAccessToken!);
+            debugPrint(
+                '[EmergencyOrchestrator] 🌐 Emergency page: $emergencyPageUrl');
+          }
+
+          _statusMessage(
+              'Emergency confirmed — Incident $_currentIncidentId created');
+
+          // Start live location updates
+          _startLiveLocationUpdates();
+        } else {
+          _statusMessage(
+              'Emergency confirmed — Server unreachable (will retry)');
+        }
+      } catch (e) {
+        _statusMessage('Emergency confirmed — Network error');
       }
-    } catch (e) {
-      _statusMessage('Emergency confirmed — Network error');
     }
 
     // === Step 4: SMS with emergency page link (fallback ONLY) ===
@@ -576,9 +658,10 @@ class EmergencyOrchestrator {
           're-sending with emergency page link');
       await _smsService.sendEmergencyToAll(
         contacts: contacts,
-        latitude: latitude,
-        longitude: longitude,
-        timestamp: timestamp,
+        latitude: hasValidLocation ? latitude : null,
+        longitude: hasValidLocation ? longitude : null,
+        timestamp: locationTimestamp ?? timestamp,
+        locationSource: locationSource,
         speedKmh: speedKmh,
         emergencyScore: score,
         emergencyPageUrl: emergencyPageUrl,
@@ -613,16 +696,15 @@ class EmergencyOrchestrator {
     if (_currentIncidentId == null) return;
     if (_currentLocation == null) return;
 
-    final lat = (_currentLocation!['latitude'] as num?)?.toDouble() ?? 0.0;
-    final lng = (_currentLocation!['longitude'] as num?)?.toDouble() ?? 0.0;
-    if (lat == 0.0 && lng == 0.0) return;
+    final lat = (_currentLocation!['latitude'] as num?)?.toDouble();
+    final lng = (_currentLocation!['longitude'] as num?)?.toDouble();
+    if (lat == null || lng == null || !_isValidCoordinate(lat, lng)) return;
 
     try {
       // Try to get a fresh GPS fix for the live update
-      double accuracy = 0;
       if (_gpsService != null) {
         try {
-          final pos = await _gpsService!.getCurrentPosition();
+          final pos = await _gpsService.getCurrentPosition();
           if (pos != null && _isValidCoordinate(pos.latitude, pos.longitude)) {
             await _apiService.updateIncidentLocation(
               incidentId: _currentIncidentId!,
@@ -638,14 +720,9 @@ class EmergencyOrchestrator {
         } catch (_) {}
       }
 
-      // Fallback to cached location
-      await _apiService.updateIncidentLocation(
-        incidentId: _currentIncidentId!,
-        latitude: lat,
-        longitude: lng,
-        accuracy: accuracy,
-        speedKmh: _currentSpeedKmh,
-      );
+      // Do not publish a cached fix as if it were a live location.
+      debugPrint(
+          '[EmergencyOrchestrator] ⚠️ Live GPS fix unavailable; skipping stale update');
     } catch (e) {
       debugPrint('[EmergencyOrchestrator] ⚠️ Live location update failed: $e');
     }

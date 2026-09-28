@@ -9,6 +9,7 @@ import 'package:resq_ai/services/contact_service.dart';
 import 'package:resq_ai/services/native_service_bridge.dart';
 import 'package:resq_ai/services/api_service.dart';
 import 'package:resq_ai/services/emergency_orchestrator.dart';
+import 'package:resq_ai/services/voice_emergency_detector.dart';
 import 'package:resq_ai/config/thresholds.dart';
 import 'package:resq_ai/models/trusted_contact.dart';
 import 'package:resq_ai/models/emergency_event.dart';
@@ -85,7 +86,10 @@ void main() {
         longitude: 77.2090,
         timestamp: DateTime.now(),
       );
-      expect(message, contains('https://www.google.com/maps/search/?api=1&query=28.6139,77.209'));
+      expect(
+          message,
+          contains(
+              'https://www.google.com/maps/search/?api=1&query=28.6139,77.209'));
     });
 
     test('buildEmergencyMessage is formatted correctly', () {
@@ -162,7 +166,8 @@ void main() {
       // but we can verify the logic of primaryContact via TrustedContact
       final contacts = [
         TrustedContact(name: 'A', phoneNumber: '+911111111111'),
-        TrustedContact(name: 'B', phoneNumber: '+912222222222', isPrimary: true),
+        TrustedContact(
+            name: 'B', phoneNumber: '+912222222222', isPrimary: true),
         TrustedContact(name: 'C', phoneNumber: '+913333333333'),
       ];
       final primary = contacts.where((c) => c.isPrimary && c.isValid).toList();
@@ -308,8 +313,7 @@ void main() {
       expect(orchestrator.isProcessing, false);
     });
 
-    test('no response → 120s timeout → auto-escalation exactly once',
-        () async {
+    test('no response → 120s timeout → auto-escalation exactly once', () async {
       fakeAsync((async) {
         int notifications = 0;
         orchestrator.onEmergencyNotification = () => notifications++;
@@ -382,7 +386,9 @@ void main() {
         expect(orchestrator.state, OrchestratorState.complete);
         expect(
           requests.where((r) => r.url.path == '/emergency').length,
-          1,
+          0,
+          reason:
+              'Backend reports must not contain fabricated coordinates when GPS is unavailable',
         );
       });
     });
@@ -445,12 +451,46 @@ void main() {
       orchestrator.userConfirmedHelp();
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      final body = requests
-          .firstWhere((r) => r.url.path == '/emergency')
-          .body;
+      final body = requests.firstWhere((r) => r.url.path == '/emergency').body;
       expect(body, contains('12.9716'));
       expect(body, contains('77.5946'));
       expect(body, contains('"emergency_type":"voice"'));
+    });
+  });
+
+  group('VoiceEmergencyDetector — default OFF & phrase matching', () {
+    late VoiceEmergencyDetector detector;
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      detector = VoiceEmergencyDetector(NativeServiceBridge());
+    });
+
+    test('voice detection is OFF by default — no mic, no listening', () {
+      // Core safety contract: a fresh app must never initialize the
+      // microphone / speech recognition until the user opts in.
+      expect(detector.isEnabled, false);
+      expect(detector.state, VoiceDetectionState.off);
+      expect(detector.isListening, false);
+      expect(detector.isPending, false);
+    });
+
+    test('detects configured emergency phrases (help / bachao / madad)', () {
+      expect(detector.matchEmergencyPhrase('help me please'), 'help');
+      expect(detector.matchEmergencyPhrase('someone please help'), 'help');
+      expect(detector.matchEmergencyPhrase('bachao bachao'), 'bachao');
+      // First matching phrase in list order wins ('madad' precedes 'madad karo').
+      expect(detector.matchEmergencyPhrase('madad karo please'), 'madad');
+      expect(detector.matchEmergencyPhrase('save me'), 'save me');
+    });
+
+    test('ignores normal speech and substring false positives', () {
+      expect(detector.matchEmergencyPhrase('the weather is fine'), isNull);
+      expect(detector.matchEmergencyPhrase('this app is helpful'), isNull,
+          reason: '"help" must not trigger inside "helpful"');
+      expect(detector.matchEmergencyPhrase(''), isNull);
+      expect(detector.matchEmergencyPhrase('okay then'), isNull,
+          reason: 'cancel words must not start an emergency');
     });
   });
 }

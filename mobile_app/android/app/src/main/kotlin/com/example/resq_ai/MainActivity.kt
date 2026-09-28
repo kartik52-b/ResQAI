@@ -74,12 +74,12 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
 
                 // Foreground service control
                 "startForegroundService" -> {
-                    startMonitoringService()
-                    result.success(true)
+                    val started = startMonitoringService()
+                    result.success(started)
                 }
                 "stopForegroundService" -> {
-                    stopMonitoringService()
-                    result.success(true)
+                    val stopped = stopMonitoringService()
+                    result.success(stopped)
                 }
                 "isServiceRunning" -> {
                     result.success(ResQMonitoringService.getIsRunning())
@@ -482,22 +482,51 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
 
     // --- Foreground Service ---
 
-    private fun startMonitoringService() {
+    private fun startMonitoringService(): Boolean {
+        val hasLocationPermission = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+            || hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+
+        if (!hasLocationPermission) {
+            Log.w(TAG, "Skipping background monitoring service start: location permission not granted")
+            return false
+        }
+
         val intent = Intent(this, ResQMonitoringService::class.java).apply {
             action = ResQMonitoringService.ACTION_START
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            Log.d(TAG, "Monitoring service start requested successfully")
+            true
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Foreground service start rejected by Android ${Build.VERSION.SDK_INT}: ${e.message}")
+            false
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "Foreground service start failed due to app state: ${e.message}")
+            false
         }
     }
 
-    private fun stopMonitoringService() {
+    private fun stopMonitoringService(): Boolean {
         val intent = Intent(this, ResQMonitoringService::class.java).apply {
             action = ResQMonitoringService.ACTION_STOP
         }
-        startService(intent)
+
+        return try {
+            startService(intent)
+            true
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Service stop rejected: ${e.message}")
+            false
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "Service stop failed: ${e.message}")
+            false
+        }
     }
 
     // --- Permissions ---

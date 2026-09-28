@@ -288,6 +288,12 @@ class VoiceEmergencyDetector extends ChangeNotifier {
     return null;
   }
 
+  /// Public, side-effect-free phrase matcher (used by tests and diagnostics).
+  /// [text] is lowercased/trimmed internally, so callers may pass raw input.
+  String? matchEmergencyPhrase(String text) {
+    return _findEmergencyPhrase(text.toLowerCase().trim());
+  }
+
   /// Check if [text] contains [phrase] as a whole phrase (not substring of another word).
   /// Single-word phrases require word boundaries on both sides.
   /// Multi-word phrases require the exact phrase to appear.

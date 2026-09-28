@@ -145,14 +145,16 @@ class ResQMonitoringService : Service() {
     private fun startForegroundService() {
         val notification = buildNotification("Monitoring sensors and location")
 
-        // Android 14+ (SDK 34+) requires specifying foreground service type
+        // Android 14+ (SDK 34+) requires specifying foreground service type.
+        // Voice recognition runs through MainActivity's SpeechRecognizer; this
+        // service only keeps location and sensor monitoring alive.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            // Service type must match manifest: location|microphone
+            // Keep this service location-only so system restarts are eligible
+            // even when the app is no longer visible.
             startForeground(
                 NOTIFICATION_ID,
                 notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)
