@@ -1,13 +1,17 @@
-fastapi==0.109.0
-uvicorn==0.27.0
-motor==3.3.2
-pymongo==4.6.1
-pydantic==2.5.3
-python-dotenv==1.0.0
-python-multipart==0.0.6
+# NOTE: Version floors instead of exact pins. The original exact pins
+# (fastapi 0.109.0 / pydantic 2.5.3) cannot build on Python 3.14+
+# (pydantic-core has no wheels and fails to compile). These ranges keep
+# the same major APIs and are verified to install on Python 3.14.
+fastapi>=0.115.0
+uvicorn>=0.32.0
+motor>=3.6.0
+pymongo>=4.9.0
+pydantic>=2.9.0
+python-dotenv>=1.0.0
+python-multipart>=0.0.12
 
 # Test dependencies.
-# httpx < 0.28 is required: starlette 0.35's TestClient passes `app=` to
-# httpx.Client, an argument httpx 0.28 removed (TypeError at client setup).
-httpx==0.26.0
-pytest==7.4.4
+# httpx < 0.28 is required by starlette 0.35's TestClient; newer starlette
+# (bundled with fastapi >= 0.115) supports current httpx, so no upper pin.
+httpx>=0.27.0
+pytest>=8.0.0

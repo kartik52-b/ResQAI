@@ -10,9 +10,11 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
-import android.os.PowerManager
 import android.util.Log
+import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
+import android.widget.LinearLayout
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -88,9 +90,28 @@ class EmergencyPopupActivity : AppCompatActivity() {
         }
 
         // Keep screen on and show over lock screen
-        setupWindow()
+        try {
+            setupWindow()
+        } catch (e: Exception) {
+            // Window flags are best-effort; never let them kill the popup.
+            Log.e(TAG, "setupWindow failed: ${e.message}")
+        }
 
-        setContentView(R.layout.activity_emergency_popup)
+        // Inflate the layout defensively. A theme/resource failure here must
+        // degrade to a plain programmatic UI instead of crashing the app —
+        // this activity is the emergency path itself.
+        var view: View? = null
+        try {
+            view = layoutInflater.inflate(R.layout.activity_emergency_popup, null)
+            setContentView(view)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to inflate emergency popup layout: ${e.message}")
+            view = null
+        }
+
+        if (view == null) {
+            buildFallbackUi()
+        }
 
         // Parse extras
         eventId = intent.getStringExtra(EXTRA_EMERGENCY_EVENT_ID)
@@ -125,13 +146,56 @@ class EmergencyPopupActivity : AppCompatActivity() {
         // Start countdown
         startCountdown(tvCountdown, countdownSeconds)
 
-        // Register dismiss receiver
-        val filter = IntentFilter(ACTION_DISMISS_POPUP)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(dismissReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(dismissReceiver, filter)
+        // Register dismiss receiver (dynamic receiver — must NOT crash the
+        // popup if registration is rejected by the OS)
+        try {
+            val filter = IntentFilter(ACTION_DISMISS_POPUP)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(dismissReceiver, filter, RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(dismissReceiver, filter)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register dismiss receiver: ${e.message}")
         }
+    }
+
+    /**
+     * Minimal programmatic emergency UI used only if the XML layout cannot be
+     * inflated. Guarantees the user can always answer ARE YOU ALRIGHT? —
+     * an unanswerable emergency popup is worse than a plain one.
+     */
+    private fun buildFallbackUi() {
+        val ctx = this
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(0xE6000000.toInt())
+            setPadding(48, 48, 48, 48)
+        }
+
+        val title = TextView(ctx).apply {
+            text = "RESQ AI — EMERGENCY DETECTED"
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 20f
+            gravity = Gravity.CENTER
+        }
+        val countdown = TextView(ctx).apply { id = R.id.tvCountdown }
+        val ok = Button(ctx).apply {
+            id = R.id.btnImOk
+            text = "I'M OK"
+        }
+        val help = Button(ctx).apply {
+            id = R.id.btnINeedHelp
+            text = "I NEED HELP"
+        }
+
+        layout.addView(title)
+        layout.addView(countdown)
+        layout.addView(ok)
+        layout.addView(help)
+        setContentView(layout)
+        Log.w(TAG, "Using fallback programmatic emergency UI")
     }
 
     private fun setupWindow() {

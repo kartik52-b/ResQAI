@@ -15,9 +15,16 @@
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 
-    <!-- Emergency Popup: full-screen, shows over lock screen, no title bar -->
-    <!-- windowShowWhenLocked/windowTurnScreenOn applied programmatically for API 27+ -->
-    <style name="EmergencyPopupTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+    <!-- Emergency Popup: full-screen, shows over lock screen, no title bar.
+
+         CRITICAL: EmergencyPopupActivity extends AppCompatActivity, so this
+         theme MUST be an AppCompat descendant. A platform theme here crashes
+         the whole app with "IllegalStateException: You need to use a
+         Theme.AppCompat theme (or descendant) with this activity" the moment
+         the emergency popup launches (see crash-log.txt).
+         The popup layout draws its own opaque background, so the dark
+         AppCompat window background is never visible. -->
+    <style name="EmergencyPopupTheme" parent="@style/Theme.AppCompat.NoActionBar">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowBackground">@android:color/white</item>

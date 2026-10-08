@@ -28,6 +28,7 @@ class ResQMonitoringService : Service() {
         const val EMERGENCY_NOTIFICATION_ID = 2001
         const val ACTION_START = "com.example.resq_ai.START_MONITORING"
         const val ACTION_STOP = "com.example.resq_ai.STOP_MONITORING"
+        const val ACTION_SHOW_EMERGENCY = "SHOW_EMERGENCY"
 
         private var isRunning = false
         private var methodChannel: MethodChannel? = null
@@ -89,10 +90,15 @@ class ResQMonitoringService : Service() {
          * Show a high-priority emergency notification (static).
          */
         fun showEmergencyNotificationStatic(context: Context, title: String, body: String) {
-            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-                putExtra("open_emergency", true)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
+            try {
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                    putExtra("open_emergency", true)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+                if (launchIntent == null) {
+                    Log.e(TAG, "Cannot show emergency notification: no launch intent")
+                    return
+                }
 
             val pendingIntent = PendingIntent.getActivity(
                 context, EMERGENCY_NOTIFICATION_ID, launchIntent,
@@ -111,8 +117,11 @@ class ResQMonitoringService : Service() {
                 .setFullScreenIntent(pendingIntent, true)
                 .build()
 
-            val manager = context.getSystemService(NotificationManager::class.java)
-            manager.notify(EMERGENCY_NOTIFICATION_ID, notification)
+            context.getSystemService(NotificationManager::class.java)
+                .notify(EMERGENCY_NOTIFICATION_ID, notification)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to show emergency notification: ${e.message}")
+            }
         }
     }
 
@@ -130,6 +139,20 @@ class ResQMonitoringService : Service() {
             ACTION_STOP -> {
                 stopSelf()
                 return START_NOT_STICKY
+            }
+            ACTION_SHOW_EMERGENCY -> {
+                // CRITICAL: every startForegroundService() call MUST be followed
+                // by startForeground() within the system timeout, otherwise
+                // Android 12+ crashes the app with
+                // ForegroundServiceDidNotStartInTimeException. Emergency alert
+                // requests arrive via startForegroundService() (they may come
+                // while the app is backgrounded), so promote to foreground
+                // first, THEN show the emergency notification.
+                runCatching { startForegroundService() }
+                val title = intent.getStringExtra("title") ?: "EMERGENCY DETECTED"
+                val body = intent.getStringExtra("body") ?: "Are you alright?"
+                runCatching { showEmergencyNotification(title, body) }
+                    .onFailure { Log.e(TAG, "Emergency notification failed: ${it.message}") }
             }
             ACTION_START -> {
                 startForegroundService()

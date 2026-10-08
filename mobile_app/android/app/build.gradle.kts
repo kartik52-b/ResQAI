@@ -17,9 +17,14 @@ android {
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.resq_ai"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // ResQ AI supports Android 11 (API 30) and newer. Pin minSdk explicitly
+        // (flutter.minSdkVersion tracks the Flutter default and can drop below
+        // 30 in future toolchains) — the spec requires API 30 as the floor.
+        // targetSdk/compileSdk continue to follow the Flutter toolchain so new
+        // Play Store requirements are picked up automatically.
+        // Do not confuse the three: minSdk = oldest supported OS, targetSdk =
+        // OS behavior contract, compileSdk = SDK we build against.
+        minSdk = 30
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)

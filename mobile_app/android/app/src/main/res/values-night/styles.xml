@@ -15,9 +15,8 @@
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 
-    <!-- Emergency Popup: full-screen, shows over lock screen, no title bar -->
-    <!-- windowShowWhenLocked/windowTurnScreenOn applied programmatically for API 27+ -->
-    <style name="EmergencyPopupTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+    <!-- Emergency Popup: MUST be an AppCompat descendant — see values/styles.xml -->
+    <style name="EmergencyPopupTheme" parent="@style/Theme.AppCompat.NoActionBar">
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowBackground">@android:color/black</item>
