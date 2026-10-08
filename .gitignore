@@ -17,6 +17,14 @@ mobile_app/**/*.aab
 mobile_app/**/*.jks
 mobile_app/**/*.keystore
 
+# ---- Generated and dependency outputs ----
+node_modules/
+build/
+dist/
+.dart_tool/
+.pytest_cache/
+.gradle/
+
 # ---- iOS / macOS ephemeral ----
 mobile_app/ios/Flutter/ephemeral/
 mobile_app/macos/Flutter/ephemeral/
@@ -34,6 +42,21 @@ mobile_app/macos/Pods/
 .env
 .env.*
 !.env.example
+
+# ---- Private credentials and signing material ----
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+*.mobileprovision
+.firebase/
+*firebase-adminsdk*.json
+*serviceAccount*.json
+*service-account*.json
+*service_account*.json
+credentials.json
 
 # ---- Python ----
 __pycache__/
